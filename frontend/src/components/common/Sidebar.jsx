@@ -73,3 +73,4 @@ export const Sidebar = ({ activePage, setActivePage, onOpenGuidance }) => {
     </aside>
   );
 };
+

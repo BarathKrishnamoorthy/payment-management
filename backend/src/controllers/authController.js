@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
-const { sendRealOtp } = require('../services/smsService');
+const { sendRealOtp, verifyTwilioVerifyOtp } = require('../services/smsService');
 
 // Demo fixed OTP for easy automated testing or rapid login, plus random 6-digit support
 const sendOtp = async (req, res) => {
@@ -76,8 +76,9 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // Check OTP validity or master test OTP (123456)
-    const isValid = (user.otp && user.otp === otp.trim()) || otp.trim() === '123456';
+    // Check Twilio Verify approval OR database OTP validity OR master test OTP (123456)
+    const isTwilioApproved = await verifyTwilioVerifyOtp(cleanPhone, otp);
+    const isValid = isTwilioApproved || (user.otp && user.otp === otp.trim()) || otp.trim() === '123456';
 
     if (!isValid) {
       return res.status(400).json({

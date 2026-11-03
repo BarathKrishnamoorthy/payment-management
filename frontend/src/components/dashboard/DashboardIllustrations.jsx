@@ -154,3 +154,4 @@ export const EmptyCategoryIllustration = () => (
     <circle cx="22" cy="65" r="1.5" fill="#DDD6FE" />
   </svg>
 );
+

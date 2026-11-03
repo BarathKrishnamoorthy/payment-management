@@ -16,8 +16,8 @@
     "react-native": "0.76.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "eas-cli": "^27.3.0"
   },
   "private": true
 }
-

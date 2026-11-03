@@ -38,3 +38,4 @@ services:
           name: rb-payment-backend
           envVarKey: RENDER_EXTERNAL_URL
           property: host
+

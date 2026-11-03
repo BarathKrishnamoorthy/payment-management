@@ -127,3 +127,4 @@ If you want to run the app on your physical mobile phone immediately without wai
    - **Android**: Expo Go app camera scanner.
    - **iOS**: Default iPhone camera app.
 4. The mobile app loads immediately with live hot-reloading!
+
