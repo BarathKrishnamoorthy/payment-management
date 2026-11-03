@@ -810,25 +810,70 @@ export default function App() {
               </View>
             </View>
 
-            {/* Upcoming Payments Header */}
+            {/* Upcoming Payments Header (Due in ≤ 3 Days) */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Recurring Dues</Text>
+              <View>
+                <Text style={styles.sectionTitle}>Upcoming Dues (Next 3 Days)</Text>
+                <Text style={{ fontSize: 11, color: '#94A3B8' }}>Only displaying commitments due within 3 days</Text>
+              </View>
               <TouchableOpacity onPress={() => setActiveTab('recurring')}>
                 <Text style={styles.sectionLink}>View All →</Text>
               </TouchableOpacity>
             </View>
 
-            {dashboardData?.upcomingPayments?.slice(0, 3).map((item: any) => (
-              <View key={item._id} style={styles.listCard}>
-                <View>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardSub}>
-                    {item.paymentType} • Due in {item.diffDays} days
-                  </Text>
-                </View>
-                <Text style={styles.cardAmt}>{formatCurrency(item.amount)}</Text>
+            {(!dashboardData?.upcomingPayments || dashboardData.upcomingPayments.filter((item: any) => item.diffDays <= 3).length === 0) ? (
+              <View style={[styles.listCard, { paddingVertical: 16, alignItems: 'center' }]}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: Colors.primaryDark }}>
+                  ✨ No Commitments Due in Next 3 Days
+                </Text>
+                <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, textAlign: 'center' }}>
+                  All active commitments remain hidden until 3 days before their due date.
+                </Text>
               </View>
-            ))}
+            ) : (
+              dashboardData.upcomingPayments
+                .filter((item: any) => item.diffDays <= 3)
+                .slice(0, 3)
+                .map((item: any) => (
+                  <View key={item._id} style={styles.listCard}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.cardTitle}>{item.title}</Text>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: item.diffDays === 0 ? '#E11D48' : '#D97706',
+                            backgroundColor: item.diffDays === 0 ? '#FFE4E6' : '#FEF3C7',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 6,
+                          }}
+                        >
+                          {item.diffDays === 0 ? 'Due Today' : `Due in ${item.diffDays}d`}
+                        </Text>
+                      </View>
+                      <Text style={styles.cardSub}>
+                        {item.paymentType} • Due {new Date(item.nextDueDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <Text style={styles.cardAmt}>{formatCurrency(item.amount)}</Text>
+                      <TouchableOpacity
+                        onPress={() => handleMarkPaid(item._id)}
+                        style={{
+                          backgroundColor: Colors.income,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>Mark Paid</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+            )}
 
             {/* Recent Transactions */}
             <View style={styles.sectionHeader}>

@@ -116,17 +116,14 @@ const getDashboardSummary = async (req, res) => {
 
     // 5. Upcoming Recurring Payments
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const thirtyDaysLater = new Date(today);
-    thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
-    thirtyDaysLater.setHours(23, 59, 59, 999);
 
+    // Fetch active recurring payments for this user
     const recurringDues = await RecurringPayment.find({
       user: userId,
       status: 'Active',
-      nextDueDate: { $lte: thirtyDaysLater },
     }).sort({ nextDueDate: 1 });
 
-    const upcomingPayments = recurringDues.map((item) => {
+    const allMappedPayments = recurringDues.map((item) => {
       const itemDue = new Date(item.nextDueDate);
       const itemDay = new Date(itemDue.getFullYear(), itemDue.getMonth(), itemDue.getDate());
       const diffDays = Math.round((itemDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -146,11 +143,17 @@ const getDashboardSummary = async (req, res) => {
         diffDays,
         isOverdue: diffDays < 0,
         isDueToday: diffDays === 0,
+        isDueSoon: diffDays <= 3 && diffDays >= 0,
       };
     });
 
+    // Rule: "show the upcoming recurring before 3 days to due date and then hide it"
+    // Only display payments within 3 days of due date (diffDays <= 3).
+    // Payments with diffDays > 3 are hidden until they enter the 3-day window.
+    const upcomingPayments = allMappedPayments.filter((p) => p.diffDays <= 3);
+
     // Payments due today specifically
-    const dueToday = upcomingPayments.filter((p) => p.isDueToday);
+    const dueToday = allMappedPayments.filter((p) => p.isDueToday);
 
     // 6. Recent Transactions (last 6)
     const recentTransactions = await Transaction.find({ user: userId })
@@ -172,7 +175,11 @@ const getDashboardSummary = async (req, res) => {
       },
       chartData,
       categoryExpenses: categoryAgg,
-      upcomingPayments,
+      upcomingPayments, // Filtered to diffDays <= 3
+      allUpcomingPayments: allMappedPayments,
+      activeSchedulesCount: recurringDues.length,
+      dueWithin3DaysCount: upcomingPayments.length,
+      hiddenSchedulesCount: allMappedPayments.filter((p) => p.diffDays > 3).length,
       dueToday,
       recentTransactions,
       unreadNotifications,

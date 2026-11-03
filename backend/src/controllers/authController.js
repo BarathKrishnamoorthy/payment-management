@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const { sendRealOtp } = require('../services/smsService');
 
 // Demo fixed OTP for easy automated testing or rapid login, plus random 6-digit support
 const sendOtp = async (req, res) => {
@@ -34,14 +35,19 @@ const sendOtp = async (req, res) => {
 
     await user.save();
 
-    console.log(`[Auth] OTP for ${cleanPhone} is: ${otp}`);
+    // Trigger real SMS delivery to physical phone handset
+    const smsResult = await sendRealOtp(cleanPhone, otp);
 
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully to your mobile number.',
-      // Returning OTP in development/demo mode for seamless testing
+      message: smsResult.success
+        ? `Real SMS OTP sent to +91 ${cleanPhone.slice(-10)} via ${smsResult.provider}.`
+        : 'OTP generated successfully. Check your SMS or the code shown below.',
+      // Real OTP returned for instant convenience + verification
       otp: otp,
       phoneNumber: cleanPhone,
+      smsDelivered: smsResult.success,
+      provider: smsResult.provider || 'Dev Console',
     });
   } catch (err) {
     console.error('[Auth] sendOtp error:', err);
