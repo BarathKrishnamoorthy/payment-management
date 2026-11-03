@@ -1,0 +1,272 @@
+const RecurringPayment = require('../models/RecurringPayment');
+const Transaction = require('../models/Transaction');
+const Notification = require('../models/Notification');
+
+// Helper to advance date by recurrence type
+const computeNextDueDate = (fromDate, recurrenceType) => {
+  const next = new Date(fromDate);
+  switch (recurrenceType) {
+    case 'Daily':
+      next.setDate(next.getDate() + 1);
+      break;
+    case 'Monthly':
+      next.setMonth(next.getMonth() + 1);
+      break;
+    case 'Quarterly':
+      next.setMonth(next.getMonth() + 3);
+      break;
+    case 'Yearly':
+      next.setFullYear(next.getFullYear() + 1);
+      break;
+    default:
+      next.setMonth(next.getMonth() + 1);
+  }
+  return next;
+};
+
+// CREATE Recurring Payment
+const createRecurringPayment = async (req, res) => {
+  try {
+    const { title, paymentType, dueDate, recurrenceType, amount, reason, autoCreateDebit } = req.body;
+
+    const validTypes = ['EMI', 'Bank Loan', 'Subscription', 'Gold Loan', 'Home Loan', 'Car Loan', 'Other'];
+    const validRecurrences = ['Daily', 'Monthly', 'Quarterly', 'Yearly'];
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'Title is required (e.g. "HDFC Car Loan").' });
+    }
+
+    if (!paymentType || !validTypes.includes(paymentType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment type must be one of: ${validTypes.join(', ')}`,
+      });
+    }
+
+    if (!recurrenceType || !validRecurrences.includes(recurrenceType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Recurrence must be one of: ${validRecurrences.join(', ')}`,
+      });
+    }
+
+    if (!amount || isNaN(amount) || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount must be greater than zero.' });
+    }
+
+    if (!dueDate) {
+      return res.status(400).json({ success: false, message: 'Due date is required.' });
+    }
+
+    const initialDue = new Date(dueDate);
+
+    const recurring = await RecurringPayment.create({
+      user: req.user._id,
+      title: title.trim(),
+      paymentType,
+      dueDate: initialDue,
+      nextDueDate: initialDue,
+      recurrenceType,
+      amount: Number(amount),
+      reason: reason ? reason.trim() : '',
+      autoCreateDebit: autoCreateDebit !== undefined ? Boolean(autoCreateDebit) : true,
+      status: 'Active',
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Recurring payment created successfully.',
+      recurring,
+    });
+  } catch (err) {
+    console.error('[Recurring] Create error:', err);
+    res.status(500).json({ success: false, message: 'Failed to create recurring payment.' });
+  }
+};
+
+// GET All Recurring Payments
+const getRecurringPayments = async (req, res) => {
+  try {
+    const { status, paymentType } = req.query;
+    const query = { user: req.user._id };
+
+    if (status && ['Active', 'Paused', 'Completed'].includes(status)) {
+      query.status = status;
+    }
+    if (paymentType && paymentType !== 'All') {
+      query.paymentType = paymentType;
+    }
+
+    const recurringList = await RecurringPayment.find(query).sort({ nextDueDate: 1 });
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Enrich with urgency metadata
+    const enriched = recurringList.map((item) => {
+      const itemDue = new Date(item.nextDueDate);
+      const itemDay = new Date(itemDue.getFullYear(), itemDue.getMonth(), itemDue.getDate());
+      const diffTime = itemDay.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      return {
+        ...item.toObject(),
+        diffDays,
+        isOverdue: diffDays < 0,
+        isDueToday: diffDays === 0,
+        isDueSoon: diffDays > 0 && diffDays <= 7,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: enriched.length,
+      recurringPayments: enriched,
+    });
+  } catch (err) {
+    console.error('[Recurring] Get error:', err);
+    res.status(500).json({ success: false, message: 'Failed to retrieve recurring payments.' });
+  }
+};
+
+// GET Recurring Payment by ID
+const getRecurringById = async (req, res) => {
+  try {
+    const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
+    if (!recurring) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found.' });
+    }
+    res.status(200).json({ success: true, recurring });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to retrieve recurring payment.' });
+  }
+};
+
+// UPDATE Recurring Payment
+const updateRecurringPayment = async (req, res) => {
+  try {
+    const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
+    if (!recurring) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found.' });
+    }
+
+    const { title, paymentType, dueDate, recurrenceType, amount, reason, status, autoCreateDebit } = req.body;
+
+    if (title) recurring.title = title.trim();
+    if (paymentType) recurring.paymentType = paymentType;
+    if (recurrenceType) recurring.recurrenceType = recurrenceType;
+    if (amount !== undefined && !isNaN(amount)) recurring.amount = Number(amount);
+    if (reason !== undefined) recurring.reason = reason.trim();
+    if (status) recurring.status = status;
+    if (autoCreateDebit !== undefined) recurring.autoCreateDebit = Boolean(autoCreateDebit);
+
+    if (dueDate) {
+      recurring.dueDate = new Date(dueDate);
+      recurring.nextDueDate = new Date(dueDate);
+    }
+
+    await recurring.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Recurring payment updated successfully.',
+      recurring,
+    });
+  } catch (err) {
+    console.error('[Recurring] Update error:', err);
+    res.status(500).json({ success: false, message: 'Failed to update recurring payment.' });
+  }
+};
+
+// DELETE Recurring Payment
+const deleteRecurringPayment = async (req, res) => {
+  try {
+    const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
+    if (!recurring) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found.' });
+    }
+
+    await RecurringPayment.deleteOne({ _id: recurring._id });
+
+    res.status(200).json({
+      success: true,
+      message: 'Recurring payment deleted successfully.',
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to delete recurring payment.' });
+  }
+};
+
+// MARK AS PAID
+const markAsPaid = async (req, res) => {
+  try {
+    const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
+    if (!recurring) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found.' });
+    }
+
+    const paidDate = req.body.paidDate ? new Date(req.body.paidDate) : new Date();
+    const paidAmount = req.body.amount ? Number(req.body.amount) : recurring.amount;
+    const note = req.body.note || `Paid on ${paidDate.toLocaleDateString()}`;
+
+    let createdTxn = null;
+
+    if (recurring.autoCreateDebit) {
+      createdTxn = await Transaction.create({
+        user: req.user._id,
+        type: 'debit',
+        amount: paidAmount,
+        date: paidDate,
+        category: recurring.paymentType,
+        reason: `${recurring.title} (${recurring.paymentType} payment)`,
+        referenceNumber: `REC-${Date.now().toString(36).toUpperCase()}`,
+        source: 'recurring_payment',
+        recurringPaymentId: recurring._id,
+      });
+    }
+
+    // Compute new nextDueDate
+    const updatedNextDue = computeNextDueDate(recurring.nextDueDate, recurring.recurrenceType);
+
+    recurring.lastPaidDate = paidDate;
+    recurring.nextDueDate = updatedNextDue;
+    recurring.paymentHistory.push({
+      paidDate,
+      amount: paidAmount,
+      transactionId: createdTxn ? createdTxn._id : null,
+      note,
+    });
+
+    await recurring.save();
+
+    // Create success notification
+    await Notification.create({
+      user: req.user._id,
+      title: `Payment Recorded: ${recurring.title}`,
+      message: `Your payment of ₹${paidAmount.toLocaleString()} for "${recurring.title}" was recorded. Next due date is ${updatedNextDue.toLocaleDateString()}.`,
+      type: 'payment_success',
+      relatedId: recurring._id,
+      amount: paidAmount,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Payment of ₹${paidAmount} recorded successfully! Next due date: ${updatedNextDue.toLocaleDateString()}`,
+      recurring,
+      transaction: createdTxn,
+    });
+  } catch (err) {
+    console.error('[Recurring] Mark as paid error:', err);
+    res.status(500).json({ success: false, message: 'Failed to record payment.' });
+  }
+};
+
+module.exports = {
+  createRecurringPayment,
+  getRecurringPayments,
+  getRecurringById,
+  updateRecurringPayment,
+  deleteRecurringPayment,
+  markAsPaid,
+};
+

@@ -1,0 +1,40 @@
+services:
+  # Backend API Web Service (Free Tier)
+  - type: web
+    name: rb-payment-backend
+    env: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false # Set to your free MongoDB Atlas M0 cluster connection URI
+
+  # Frontend Web App Static Site (Free Tier)
+  - type: web
+    name: rb-payment-web
+    env: static
+    plan: free
+    region: oregon
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: rb-payment-backend
+          envVarKey: RENDER_EXTERNAL_URL
+          property: host

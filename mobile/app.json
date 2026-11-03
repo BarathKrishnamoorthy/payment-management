@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "RB Payment Management",
+    "slug": "rb-payment-management",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6B21A8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rbpayment.management",
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"],
+        "NSCameraUsageDescription": "RB Payment requires camera access to attach receipts and invoices."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6B21A8"
+      },
+      "package": "com.rbpayment.management",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "INTERNET"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#7C3AED",
+          "sounds": ["./assets/chime.wav"]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "rb-payment-management-uuid"
+      }
+    }
+  }
+}
+
