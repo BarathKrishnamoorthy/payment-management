@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/common/Navbar';
+import { Sidebar } from './components/common/Sidebar';
 import { NotificationDrawer } from './components/common/NotificationDrawer';
 import { ModuleGuidanceModal } from './components/guidance/ModuleGuidanceModal';
 import { AuthPage } from './pages/AuthPage';
@@ -13,7 +14,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
 
 export function App() {
-  const { isAuthenticated, isOnboarded, loading, user, resetAllTutorials } = useAuth();
+  const { isAuthenticated, isOnboarded, loading, user } = useAuth();
 
   const [activePage, setActivePage] = useState('dashboard');
   const [showGuidance, setShowGuidance] = useState(false);
@@ -44,7 +45,6 @@ export function App() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      // Poll notifications every 30 seconds
       const timer = setInterval(fetchNotifications, 30000);
       return () => clearInterval(timer);
     }
@@ -68,11 +68,9 @@ export function App() {
     }
   };
 
-  // Replay tour for current active module
   const handleReplayTour = async () => {
     try {
       await api.resetTutorialStatus(activePage);
-      // Update local context
       if (user && user.tutorialStatus) {
         user.tutorialStatus[activePage] = false;
       }
@@ -106,9 +104,12 @@ export function App() {
     return <OnboardingPage onComplete={() => setActivePage('dashboard')} />;
   }
 
-  // 3. Authenticated & Onboarded -> Main Application Layout
+  // 3. Authenticated & Onboarded -> Main Application Layout matching screenshot
   return (
-    <div className="min-h-screen bg-brand-50/50 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAF7FF] flex flex-col font-sans relative overflow-x-hidden">
+      {/* Decorative organic purple wave in the top-right corner matching screenshot */}
+      <div className="absolute top-0 right-0 w-[500px] h-[300px] bg-gradient-to-bl from-purple-200/50 via-purple-100/25 to-transparent blur-[80px] pointer-events-none -z-0" />
+
       {/* Top Navbar */}
       <Navbar
         activePage={activePage}
@@ -120,44 +121,58 @@ export function App() {
         onReplayTour={handleReplayTour}
         unreadCount={unreadCount}
         onOpenNotifications={() => setShowNotifications(true)}
+        onSearchClick={() => setActivePage('transactions')}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {activePage === 'dashboard' && (
-          <DashboardPage
-            key={`dash-${replayKey}`}
-            setActivePage={(p) => {
-              setTxnPresetType(null);
-              setActivePage(p);
-            }}
-            onTriggerAddTxn={(type) => {
-              setTxnPresetType(type);
-              setActivePage('transactions');
-            }}
-            onTriggerAddRecurring={() => setActivePage('recurring')}
-          />
-        )}
+      {/* Layout: Sidebar Icon Dock + Main Content Canvas */}
+      <div className="flex-1 flex w-full relative z-10">
+        {/* Left Sidebar Icon Dock */}
+        <Sidebar
+          activePage={activePage}
+          setActivePage={(page) => {
+            setTxnPresetType(null);
+            setActivePage(page);
+          }}
+          onOpenGuidance={() => setShowGuidance(true)}
+        />
 
-        {activePage === 'transactions' && (
-          <TransactionsPage
-            key={`txn-${replayKey}`}
-            initialType={txnPresetType}
-          />
-        )}
+        {/* Main Content Area */}
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-8 py-6">
+          {activePage === 'dashboard' && (
+            <DashboardPage
+              key={`dash-${replayKey}`}
+              setActivePage={(p) => {
+                setTxnPresetType(null);
+                setActivePage(p);
+              }}
+              onTriggerAddTxn={(type) => {
+                setTxnPresetType(type);
+                setActivePage('transactions');
+              }}
+              onTriggerAddRecurring={() => setActivePage('recurring')}
+            />
+          )}
 
-        {activePage === 'recurring' && (
-          <RecurringPage key={`rec-${replayKey}`} />
-        )}
+          {activePage === 'transactions' && (
+            <TransactionsPage
+              key={`txn-${replayKey}`}
+              initialType={txnPresetType}
+            />
+          )}
 
-        {activePage === 'reports' && (
-          <ReportsPage key={`rep-${replayKey}`} />
-        )}
+          {activePage === 'recurring' && (
+            <RecurringPage key={`rec-${replayKey}`} />
+          )}
 
-        {activePage === 'profile' && (
-          <ProfilePage key={`prof-${replayKey}`} />
-        )}
-      </main>
+          {activePage === 'reports' && (
+            <ReportsPage key={`rep-${replayKey}`} />
+          )}
+
+          {activePage === 'profile' && (
+            <ProfilePage key={`prof-${replayKey}`} />
+          )}
+        </main>
+      </div>
 
       {/* Notification Drawer */}
       <NotificationDrawer
