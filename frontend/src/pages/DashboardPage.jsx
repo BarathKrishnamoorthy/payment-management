@@ -11,8 +11,19 @@ import {
   PieChart as PieIcon,
   Calendar,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  Home,
+  Car,
+  CreditCard,
+  Check,
+  Clock,
+  ChevronRight,
+  AlertTriangle,
+  X,
+  History,
+  Info
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import {
   ResponsiveContainer,
   LineChart,
@@ -46,6 +57,9 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
   const [trendRange, setTrendRange] = useState('Last 6 Months');
   const [categoryRange, setCategoryRange] = useState('This Month');
 
+  // Recurring Payment Details Modal
+  const [selectedRecurringDetail, setSelectedRecurringDetail] = useState(null);
+
   const fetchSummary = async () => {
     try {
       const res = await api.getDashboardSummary();
@@ -74,6 +88,40 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
   const handleFinishTour = () => {
     setShowTour(false);
     setModuleTutorialDone('dashboard');
+  };
+
+  // Instant 1-click payment settlement from dashboard
+  const handlePayDueNow = async (recurringId) => {
+    try {
+      await api.markAsPaid(recurringId);
+      try {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.7 },
+          colors: ['#10B981', '#7C3AED', '#A855F7'],
+        });
+      } catch (e) {}
+      await fetchSummary();
+    } catch (err) {
+      alert(err.message || 'Failed to mark payment as paid');
+    }
+  };
+
+  const getCategoryIcon = (type) => {
+    switch (type) {
+      case 'Home Loan':
+        return Home;
+      case 'Car Loan':
+        return Car;
+      case 'Gold Loan':
+        return Coins;
+      case 'Bank Loan':
+      case 'EMI':
+        return CreditCard;
+      default:
+        return RotateCcw;
+    }
   };
 
   const displayName = user?.name || 'Barathk';
@@ -126,6 +174,13 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
       description: 'Track where your money goes across housing, EMIs, food, shopping, and utilities.',
       placement: 'left',
     },
+    {
+      targetId: 'dash-recurring-section',
+      targetName: 'Recurring Payments Hub',
+      title: 'Active Loans & Automated Dues',
+      description: 'View your upcoming loan installments, EMIs, and subscriptions, and settle them directly with 1-click.',
+      placement: 'top',
+    },
   ];
 
   return (
@@ -139,7 +194,7 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
         moduleName="dashboard"
       />
 
-      {/* Main Header Row */}
+      {/* Main Header Row matching screenshot */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
         {/* Title with vertical purple accent bar */}
         <div className="flex items-start gap-3">
@@ -268,9 +323,9 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
         </div>
       </div>
 
-      {/* Lower Row: 2-Column Analytics Cards */}
+      {/* 2-Column Analytics Cards (Income vs. Expense Trend + Expense by Category) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Card (col-span-7 or 8): Income vs. Expense Trend */}
+        {/* Left Card: Income vs. Expense Trend */}
         <div
           id="dash-trend-card"
           className="lg:col-span-7 xl:col-span-8 p-6 rounded-3xl bg-white border border-purple-100 shadow-purple-sm flex flex-col justify-between"
@@ -361,7 +416,7 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
           </div>
         </div>
 
-        {/* Right Card (col-span-5 or 4): Expense by Category */}
+        {/* Right Card: Expense by Category */}
         <div
           id="dash-category-card"
           className="lg:col-span-5 xl:col-span-4 p-6 rounded-3xl bg-white border border-purple-100 shadow-purple-sm flex flex-col justify-between"
@@ -455,6 +510,309 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
           )}
         </div>
       </div>
+
+      {/* 3rd Row: Recurring Payment Schedules directly on Dashboard */}
+      <div id="dash-recurring-section" className="p-6 rounded-3xl bg-white border border-purple-100 shadow-purple-sm space-y-5">
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-100/90 text-brand-700 flex items-center justify-center font-bold">
+              <RotateCcw className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900">
+                  Upcoming Recurring Payments & Loan Commitments
+                </h3>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-brand-100 text-brand-800">
+                  {data?.upcomingPayments?.length || 0} Active Schedules
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-medium">
+                Track EMIs, home loans, car loans, and subscriptions with automated next due dates
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => onTriggerAddRecurring ? onTriggerAddRecurring() : setActivePage('recurring')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-brand-700 text-xs font-bold transition-all shadow-2xs"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              <span>+ Add Recurring</span>
+            </button>
+            <button
+              onClick={() => setActivePage('recurring')}
+              className="flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white border border-purple-200 hover:bg-purple-50 text-slate-700 text-xs font-bold transition-all shadow-2xs"
+            >
+              <span>View All</span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Urgent Due Today Alert Strip if any */}
+        {data?.dueToday && data.dueToday.length > 0 && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-500 via-rose-600 to-brand-600 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-white animate-pulse" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wider text-rose-100">
+                  Payment Due Today
+                </p>
+                <p className="text-sm font-bold text-white">
+                  {data.dueToday[0]?.title} • {formatCurrency(data.dueToday[0]?.amount)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handlePayDueNow(data.dueToday[0]?._id)}
+              className="px-4 py-2 rounded-xl bg-white text-rose-600 hover:bg-rose-50 text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 self-start sm:self-auto transition-transform hover:scale-102"
+            >
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>Mark as Paid</span>
+            </button>
+          </div>
+        )}
+
+        {/* Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {(!data?.upcomingPayments || data.upcomingPayments.length === 0) ? (
+            <div className="col-span-full py-12 text-center text-slate-400 text-xs">
+              <RotateCcw className="w-8 h-8 mx-auto text-slate-200 mb-2 stroke-[1.5]" />
+              <p className="font-semibold text-slate-600">No recurring payment schedules configured yet</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Add your monthly EMIs, home loans, car loans, or subscriptions to receive alerts on the dashboard.
+              </p>
+              <button
+                onClick={() => onTriggerAddRecurring ? onTriggerAddRecurring() : setActivePage('recurring')}
+                className="mt-3 px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold shadow-sm"
+              >
+                + Add First Recurring Schedule
+              </button>
+            </div>
+          ) : (
+            data.upcomingPayments.map((item) => {
+              const Icon = getCategoryIcon(item.paymentType);
+              const isDueToday = item.isDueToday;
+              const isDueSoon = item.diffDays <= 3 && item.diffDays > 0;
+
+              return (
+                <div
+                  key={item._id}
+                  className={`p-4 rounded-2xl border transition-all hover:shadow-purple-sm flex flex-col justify-between ${
+                    isDueToday
+                      ? 'bg-rose-50/40 border-rose-300 ring-1 ring-rose-200'
+                      : 'bg-white border-purple-100 hover:border-purple-300'
+                  }`}
+                >
+                  <div>
+                    {/* Top Category Badge & Due Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-purple-50 text-brand-700 flex items-center justify-center">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-100/80 text-brand-800">
+                          {item.paymentType}
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          isDueToday
+                            ? 'bg-rose-100 text-rose-700 animate-pulse'
+                            : isDueSoon
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-purple-50 text-purple-700'
+                        }`}
+                      >
+                        {isDueToday
+                          ? '🚨 Due Today'
+                          : item.diffDays < 0
+                          ? `Overdue ${Math.abs(item.diffDays)}d`
+                          : `Due in ${item.diffDays}d`}
+                      </span>
+                    </div>
+
+                    {/* Title & Amount with clickable details */}
+                    <div
+                      onClick={() => setSelectedRecurringDetail(item)}
+                      className="cursor-pointer group"
+                    >
+                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-brand-700 transition-colors mt-2.5 truncate" title={item.title}>
+                        {item.title}
+                      </h4>
+                      <div className="flex items-baseline gap-1 mt-0.5">
+                        <span className="text-xl font-black text-slate-900">
+                          {formatCurrency(item.amount)}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          /{item.recurrenceType.toLowerCase()}
+                        </span>
+                      </div>
+                      {item.reason ? (
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">{item.reason}</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Due Date & Action */}
+                  <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      {new Date(item.nextDueDate).toLocaleDateString([], {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSelectedRecurringDetail(item)}
+                        className="px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-brand-700 text-[11px] font-semibold transition-colors"
+                      >
+                        Details
+                      </button>
+                      <button
+                        onClick={() => handlePayDueNow(item._id)}
+                        className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold shadow-2xs transition-all flex items-center gap-1 hover:scale-102"
+                        title="Mark as paid and advance to next due date"
+                      >
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                        <span>Mark Paid</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Recurring Payment Details Modal */}
+      {selectedRecurringDetail && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-purple-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-brand-700 via-brand-600 to-brand-800 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Recurring Payment Details
+                  </h3>
+                  <p className="text-xs text-brand-100">{selectedRecurringDetail.paymentType} Commitment</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedRecurringDetail(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 text-xs">
+              <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-brand-100 text-brand-800">
+                    {selectedRecurringDetail.paymentType}
+                  </span>
+                  <h4 className="text-lg font-bold text-slate-900 mt-1">
+                    {selectedRecurringDetail.title}
+                  </h4>
+                  <p className="text-xs text-slate-500">{selectedRecurringDetail.reason || 'No description provided'}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-slate-900">
+                    {formatCurrency(selectedRecurringDetail.amount)}
+                  </span>
+                  <p className="text-[10px] text-slate-400 font-medium">per {selectedRecurringDetail.recurrenceType.toLowerCase()}</p>
+                </div>
+              </div>
+
+              {/* Details table */}
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400">Next Due Date:</span>
+                  <span className="font-bold text-slate-800">
+                    {new Date(selectedRecurringDetail.nextDueDate).toLocaleDateString([], {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400">Recurrence Frequency:</span>
+                  <span className="font-semibold text-slate-800">{selectedRecurringDetail.recurrenceType}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400">Auto-Debit in Ledger:</span>
+                  <span className="font-semibold text-emerald-600">Enabled</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-50">
+                  <span className="text-slate-400">Status:</span>
+                  <span className="font-bold text-brand-700">Active Schedule</span>
+                </div>
+              </div>
+
+              {/* Past Payment History */}
+              <div className="space-y-2 pt-2">
+                <span className="font-bold text-slate-700 flex items-center gap-1">
+                  <History className="w-3.5 h-3.5 text-brand-600" />
+                  Past Payment History
+                </span>
+                {(!selectedRecurringDetail.paymentHistory || selectedRecurringDetail.paymentHistory.length === 0) ? (
+                  <p className="text-[11px] text-slate-400 italic p-3 bg-slate-50 rounded-xl">
+                    No payment history recorded yet. Tap "Mark as Paid" to settle this installment.
+                  </p>
+                ) : (
+                  <div className="max-h-36 overflow-y-auto space-y-1.5">
+                    {selectedRecurringDetail.paymentHistory.map((h, hi) => (
+                      <div key={hi} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-[11px]">
+                        <div>
+                          <span className="font-bold text-slate-800">{new Date(h.paidDate).toLocaleDateString()}</span>
+                          <span className="text-slate-400 ml-1.5">• {h.note || 'Settled'}</span>
+                        </div>
+                        <span className="font-black text-emerald-600">{formatCurrency(h.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button
+                  onClick={() => setSelectedRecurringDetail(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-slate-700"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={async () => {
+                    await handlePayDueNow(selectedRecurringDetail._id);
+                    setSelectedRecurringDetail(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  <span>Mark as Paid Now</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
