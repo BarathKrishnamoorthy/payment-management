@@ -98,13 +98,15 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`\n=================================================`);
-  console.log(` RB Payment Management Backend API`);
-  console.log(` Server running on http://localhost:${PORT}`);
-  console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(` Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`=================================================\n`);
-});
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`\n=================================================`);
+    console.log(` RB Payment Management Backend API`);
+    console.log(` Server running on http://localhost:${PORT}`);
+    console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(` Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`=================================================\n`);
+  });
+}
 
 module.exports = app;

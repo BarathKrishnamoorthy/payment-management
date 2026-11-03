@@ -2,7 +2,11 @@ const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('rb_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const headers = { 'Bypass-Tunnel-Reminder': 'true' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
 };
 
 const handleResponse = async (res) => {
@@ -23,7 +27,10 @@ export const api = {
   sendOtp: async (phoneNumber) => {
     const res = await fetch(`${BASE_URL}/auth/send-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true',
+      },
       body: JSON.stringify({ phoneNumber }),
     });
     return handleResponse(res);
@@ -32,7 +39,10 @@ export const api = {
   verifyOtp: async (phoneNumber, otp) => {
     const res = await fetch(`${BASE_URL}/auth/verify-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true',
+      },
       body: JSON.stringify({ phoneNumber, otp }),
     });
     return handleResponse(res);

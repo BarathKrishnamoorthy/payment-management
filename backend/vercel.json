@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "MONGODB_URI": "mongodb+srv://barathkrishnamoorthy:CarpoolPass2026!@cluster0.oh74nyv.mongodb.net/rb_payment_db?retryWrites=true&w=majority",
+    "JWT_SECRET": "rb_payment_management_jwt_secret_super_secure_key_2026"
+  }
+}

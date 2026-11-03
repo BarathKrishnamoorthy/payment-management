@@ -18,6 +18,7 @@ export const getApiUrl = () => currentApiUrl;
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Bypass-Tunnel-Reminder': 'true',
   };
   if (userToken) {
     headers['Authorization'] = `Bearer ${userToken}`;
