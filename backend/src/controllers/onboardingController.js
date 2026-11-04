@@ -30,12 +30,13 @@ const completeOnboarding = async (req, res) => {
         success: true,
         message: 'Customer onboarding completed successfully!',
         user: {
+          _id: user._id,
           id: user._id,
           phoneNumber: user.phoneNumber,
           name: user.name,
           bankName: user.bankName,
           accountNumber: user.accountNumber,
-          isOnboarded: user.isOnboarded,
+          isOnboarded: true,
           tutorialStatus: user.tutorialStatus,
         },
       });
@@ -45,15 +46,20 @@ const completeOnboarding = async (req, res) => {
     const userId = req.user ? req.user._id : 'demo-user-id';
     const updated = fallbackStore.updateUser(userId, {
       name: name.trim(),
-      accountNumber: accountNumber ? accountNumber.trim() : '•••• 8821',
-      bankName: bankName ? bankName.trim() : 'HDFC Bank',
+      accountNumber: accountNumber ? accountNumber.trim() : '',
+      bankName: bankName ? bankName.trim() : '',
       isOnboarded: true,
     });
 
     res.status(200).json({
       success: true,
       message: 'Customer onboarding completed successfully (Session Mode)!',
-      user: updated,
+      user: {
+        ...updated,
+        _id: updated._id,
+        id: updated._id,
+        isOnboarded: true,
+      },
       isDbConnected: false,
     });
   } catch (err) {

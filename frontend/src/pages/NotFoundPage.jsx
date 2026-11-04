@@ -44,3 +44,4 @@ export const NotFoundPage = () => {
     </div>
   );
 };
+

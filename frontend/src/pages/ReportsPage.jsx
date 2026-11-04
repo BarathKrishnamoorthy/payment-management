@@ -67,7 +67,16 @@ export const ReportsPage = () => {
 
   // First-time walkthrough
   useEffect(() => {
-    if (user && !user.tutorialStatus?.reports && !loading) {
+    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawId = user?._id || user?.id || '';
+    const isDoneLocally =
+      (phone && localStorage.getItem(`rb_tut_reports_${phone}`) === 'done') ||
+      (rawId && localStorage.getItem(`rb_tut_reports_${rawId}`) === 'done') ||
+      localStorage.getItem('rb_tut_reports_customer') === 'done' ||
+      localStorage.getItem('rb_tut_reports_done') === 'done';
+    const isDoneServer = Boolean(user?.tutorialStatus?.reports);
+
+    if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
@@ -75,6 +84,12 @@ export const ReportsPage = () => {
 
   const handleFinishTour = () => {
     setShowTour(false);
+    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawId = user?._id || user?.id || '';
+    if (phone) localStorage.setItem(`rb_tut_reports_${phone}`, 'done');
+    if (rawId) localStorage.setItem(`rb_tut_reports_${rawId}`, 'done');
+    localStorage.setItem('rb_tut_reports_customer', 'done');
+    localStorage.setItem('rb_tut_reports_done', 'done');
     setModuleTutorialDone('reports');
   };
 
@@ -109,7 +124,7 @@ export const ReportsPage = () => {
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement('a');
       link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `RB_Payment_Report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `Payment_Report_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -160,7 +175,7 @@ export const ReportsPage = () => {
       {/* Interactive Tour */}
       <ModuleTour
         isOpen={showTour}
-        onClose={() => setShowTour(false)}
+        onClose={handleFinishTour}
         onFinish={handleFinishTour}
         steps={tourSteps}
         moduleName="reports"

@@ -281,7 +281,7 @@ export const ProfilePage = () => {
           User Guidance & Tutorial Preferences
         </h3>
         <p className="text-xs text-slate-500 leading-relaxed">
-          RB Payment Management features interactive visual walkthroughs with directional arrows and spotlight tooltips for each module.
+          Payment Management features interactive visual walkthroughs with directional arrows and spotlight tooltips for each module.
         </p>
 
         <div className="p-4 rounded-2xl bg-brand-50/60 border border-brand-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

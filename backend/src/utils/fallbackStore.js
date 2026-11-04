@@ -1,11 +1,60 @@
 // In-Memory Fallback Store - Zero-Downtime Resilience with STRICT Customer-Wise Data Isolation
 // Completely free of dummy/mock data: every customer starts with an empty ledger (0 balance, 0 records).
+const fs = require('fs');
+const path = require('path');
 
 const memoryUsers = new Map();
 const memoryOtps = new Map();
 let memoryTransactions = [];
 let memoryRecurring = [];
 let memoryNotifications = [];
+
+// Persistence file path
+const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '../../data');
+const STORE_FILE = path.join(DATA_DIR, 'fallback_store.json');
+
+const saveToDisk = () => {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const data = {
+      users: Array.from(memoryUsers.entries()),
+      transactions: memoryTransactions,
+      recurring: memoryRecurring,
+      notifications: memoryNotifications,
+    };
+    fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    // Gracefully ignore storage write failures in restricted environments
+  }
+};
+
+const loadFromDisk = () => {
+  try {
+    if (fs.existsSync(STORE_FILE)) {
+      const raw = fs.readFileSync(STORE_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed.users && Array.isArray(parsed.users)) {
+        parsed.users.forEach(([k, v]) => memoryUsers.set(k, v));
+      }
+      if (parsed.transactions && Array.isArray(parsed.transactions)) {
+        memoryTransactions = parsed.transactions;
+      }
+      if (parsed.recurring && Array.isArray(parsed.recurring)) {
+        memoryRecurring = parsed.recurring;
+      }
+      if (parsed.notifications && Array.isArray(parsed.notifications)) {
+        memoryNotifications = parsed.notifications;
+      }
+    }
+  } catch (e) {
+    // Ignore corrupt or unreadable cache file
+  }
+};
+
+// Initial load on start
+loadFromDisk();
 
 // Helper to calculate days difference to target due date
 const getDaysDifference = (targetDate) => {
@@ -59,10 +108,10 @@ module.exports = {
     for (const u of memoryUsers.values()) {
       if (String(u._id) === stringId) return u;
     }
-    // Return empty new customer object if not found
-    return {
+    const cleanPhone = stringId.replace('user-', '') || '9876543210';
+    const newUser = {
       _id: stringId,
-      phoneNumber: stringId.replace('user-', '') || '',
+      phoneNumber: cleanPhone,
       name: 'Customer',
       bankName: '',
       accountNumber: '',
@@ -70,13 +119,44 @@ module.exports = {
       salaryDate: 1,
       isOnboarded: false,
       tutorialStatus: { dashboard: false, transactions: false, recurring: false, reports: false },
+      createdAt: new Date().toISOString(),
     };
+    memoryUsers.set(cleanPhone, newUser);
+    return newUser;
   },
 
   updateUser: (id, updates) => {
     const user = module.exports.getUserById(id);
+    if (updates.name && updates.name.trim() !== '' && !updates.name.startsWith('Customer ') && updates.name !== 'Customer') {
+      updates.isOnboarded = true;
+    }
     Object.assign(user, updates);
+    saveToDisk();
     return user;
+  },
+
+  updateTutorialStatus: (userId, modName, completed) => {
+    const user = module.exports.getUserById(userId);
+    if (!user.tutorialStatus) {
+      user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+    }
+    user.tutorialStatus[modName] = Boolean(completed);
+    saveToDisk();
+    return user.tutorialStatus;
+  },
+
+  resetTutorialStatus: (userId, modName) => {
+    const user = module.exports.getUserById(userId);
+    if (!user.tutorialStatus) {
+      user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+    }
+    if (modName) {
+      user.tutorialStatus[modName] = false;
+    } else {
+      user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+    }
+    saveToDisk();
+    return user.tutorialStatus;
   },
 
   // Customer-Wise Dashboard Summary (Actual calculated counts and lists, zero hardcoded numbers)
@@ -243,6 +323,7 @@ module.exports = {
       createdAt: new Date().toISOString(),
     };
     memoryTransactions.unshift(newTx);
+    saveToDisk();
     return newTx;
   },
 
@@ -251,7 +332,9 @@ module.exports = {
     memoryTransactions = memoryTransactions.filter(
       (t) => !(t._id === id && String(t.user) === String(userId))
     );
-    return memoryTransactions.length < initialLen;
+    const deleted = memoryTransactions.length < initialLen;
+    if (deleted) saveToDisk();
+    return deleted;
   },
 
   // Customer-Wise Recurring Payments
@@ -288,6 +371,7 @@ module.exports = {
       createdAt: new Date().toISOString(),
     };
     memoryRecurring.unshift(newRec);
+    saveToDisk();
     return newRec;
   },
 
@@ -322,6 +406,7 @@ module.exports = {
         note: `Paid on ${paidDate.toLocaleDateString()}`,
       });
 
+      saveToDisk();
       return item;
     }
     return null;
@@ -332,7 +417,9 @@ module.exports = {
     memoryRecurring = memoryRecurring.filter(
       (r) => !(r._id === id && String(r.user) === String(userId))
     );
-    return memoryRecurring.length < initialLen;
+    const deleted = memoryRecurring.length < initialLen;
+    if (deleted) saveToDisk();
+    return deleted;
   },
 
   // Customer-Wise Reports

@@ -41,6 +41,15 @@ export const OnboardingPage = ({ onComplete }) => {
         accountNumber: accountNumber.trim(),
       });
 
+      // Persist permanently in browser so this customer never sees onboarding again!
+      const cleanPhone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+      if (cleanPhone) {
+        localStorage.setItem(`rb_customer_onboarded_${cleanPhone}`, 'true');
+        localStorage.setItem(`rb_customer_name_${cleanPhone}`, name.trim());
+        if (bankName.trim()) localStorage.setItem(`rb_customer_bank_${cleanPhone}`, bankName.trim());
+        if (accountNumber.trim()) localStorage.setItem(`rb_customer_acc_${cleanPhone}`, accountNumber.trim());
+      }
+
       // Fire celebratory confetti!
       try {
         confetti({
@@ -74,12 +83,15 @@ export const OnboardingPage = ({ onComplete }) => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-500/20 border border-brand-400/30 text-brand-200 text-xs font-semibold mb-3 backdrop-blur">
             <Sparkles className="w-3.5 h-3.5 text-brand-300" />
-            <span>Welcome to RB Payment Management</span>
+            <span>Welcome to Payment Management</span>
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
             Complete Customer Onboarding
           </h1>
-          <p className="mt-2 text-sm text-brand-200">
+          <p className="mt-1 text-xs text-brand-300 font-semibold tracking-wide">
+            Every Rupee Matters
+          </p>
+          <p className="mt-1 text-sm text-brand-200">
             Tell us a bit about yourself to personalize your payment and loan ledger.
           </p>
         </div>
@@ -198,6 +210,11 @@ export const OnboardingPage = ({ onComplete }) => {
             <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
             <span>Bank details are encrypted and securely stored.</span>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center text-xs text-brand-200">
+          poweredBy <span className="font-extrabold text-white">RB NextWave</span>
         </div>
       </div>
     </div>

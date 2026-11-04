@@ -62,20 +62,24 @@ export const Navbar = ({
             className="flex items-center gap-3 cursor-pointer shrink-0"
             onClick={() => navigate('/dashboard')}
           >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-700 via-brand-600 to-brand-500 flex items-center justify-center text-white shadow-purple-md">
-              <Wallet className="w-5 h-5 text-white stroke-[2.2]" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-700 via-brand-600 to-brand-500 flex items-center justify-center p-0.5 shadow-purple-md overflow-hidden">
+              <img
+                src="/logo-icon.png"
+                alt="Logo"
+                className="w-full h-full object-contain rounded-xl"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-base tracking-tight text-slate-900">
-                  RB Payment
+                  Payment Management
                 </span>
                 <span className="text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
                   PRO
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5">
-                Smart Finance & Loan Manager
+              <p className="text-[11px] text-brand-600 font-semibold leading-none mt-0.5">
+                Every Rupee Matters
               </p>
             </div>
           </div>

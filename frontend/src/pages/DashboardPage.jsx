@@ -87,7 +87,16 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
 
   // Check if first-time walkthrough should be displayed
   useEffect(() => {
-    if (user && !user.tutorialStatus?.dashboard && !loading) {
+    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawId = user?._id || user?.id || '';
+    const isDoneLocally =
+      (phone && localStorage.getItem(`rb_tut_dashboard_${phone}`) === 'done') ||
+      (rawId && localStorage.getItem(`rb_tut_dashboard_${rawId}`) === 'done') ||
+      localStorage.getItem('rb_tut_dashboard_customer') === 'done' ||
+      localStorage.getItem('rb_tut_dashboard_done') === 'done';
+    const isDoneServer = Boolean(user?.tutorialStatus?.dashboard);
+
+    if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
@@ -95,6 +104,12 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
 
   const handleFinishTour = () => {
     setShowTour(false);
+    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawId = user?._id || user?.id || '';
+    if (phone) localStorage.setItem(`rb_tut_dashboard_${phone}`, 'done');
+    if (rawId) localStorage.setItem(`rb_tut_dashboard_${rawId}`, 'done');
+    localStorage.setItem('rb_tut_dashboard_customer', 'done');
+    localStorage.setItem('rb_tut_dashboard_done', 'done');
     setModuleTutorialDone('dashboard');
   };
 
@@ -203,7 +218,7 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
       {/* Interactive Tour */}
       <ModuleTour
         isOpen={showTour}
-        onClose={() => setShowTour(false)}
+        onClose={handleFinishTour}
         onFinish={handleFinishTour}
         steps={tourSteps}
         moduleName="dashboard"

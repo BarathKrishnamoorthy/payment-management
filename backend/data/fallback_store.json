@@ -1,0 +1,27 @@
+{
+  "users": [
+    [
+      "6379976620",
+      {
+        "_id": "user-6379976620",
+        "phoneNumber": "6379976620",
+        "name": "Barath Krishnamoorthy",
+        "bankName": "HDFC",
+        "accountNumber": "12345678",
+        "monthlySalary": 0,
+        "salaryDate": 1,
+        "isOnboarded": true,
+        "tutorialStatus": {
+          "dashboard": true,
+          "transactions": false,
+          "recurring": false,
+          "reports": false
+        },
+        "createdAt": "2026-11-04T16:08:43.461Z"
+      }
+    ]
+  ],
+  "transactions": [],
+  "recurring": [],
+  "notifications": []
+}

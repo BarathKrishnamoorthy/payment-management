@@ -19,11 +19,14 @@ import { api } from './services/api';
 // Branded loading spinner
 const LoadingScreen = () => (
   <div className="min-h-screen bg-brand-900 flex flex-col items-center justify-center text-white">
-    <div className="w-12 h-12 rounded-2xl bg-brand-600 animate-spin flex items-center justify-center mb-4 shadow-purple-lg">
-      <div className="w-4 h-4 bg-white rounded-full" />
+    <div className="w-14 h-14 rounded-2xl bg-white/10 p-1 flex items-center justify-center mb-4 shadow-purple-lg border border-white/20">
+      <img src="/logo-icon.png" alt="Logo" className="w-full h-full object-contain rounded-xl" />
     </div>
     <p className="text-sm font-bold tracking-wider text-brand-200">
-      Loading RB Payment Management...
+      Loading Payment Management...
+    </p>
+    <p className="text-xs text-brand-400 mt-1 font-medium">
+      Every Rupee Matters
     </p>
   </div>
 );
@@ -136,6 +139,21 @@ const AppLayout = ({ children, activeModule }) => {
           </ErrorBoundary>
         </main>
       </div>
+
+      {/* Universal Footer */}
+      <footer className="border-t border-purple-100/70 bg-white/80 backdrop-blur-sm py-4 px-4 sm:px-8 relative z-10">
+        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <img src="/logo-icon.png" alt="Logo" className="w-5 h-5 rounded-md object-contain" />
+            <span className="font-bold text-slate-800">Payment Management</span>
+            <span className="text-purple-300">•</span>
+            <span className="text-brand-600 font-semibold">Every Rupee Matters</span>
+          </div>
+          <div className="text-slate-500 font-medium">
+            poweredBy <span className="font-extrabold text-brand-700">RB NextWave</span>
+          </div>
+        </div>
+      </footer>
 
       {/* Notification Drawer */}
       <NotificationDrawer

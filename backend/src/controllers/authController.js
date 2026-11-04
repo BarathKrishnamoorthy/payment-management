@@ -115,6 +115,14 @@ const verifyOtp = async (req, res) => {
 
       user.otp = undefined;
       user.otpExpiry = undefined;
+
+      const hasCompletedProfile = Boolean(
+        user.isOnboarded ||
+        (user.name && user.name.trim() !== '' && !user.name.startsWith('Customer ') && user.name !== 'Customer')
+      );
+      if (hasCompletedProfile && !user.isOnboarded) {
+        user.isOnboarded = true;
+      }
       await user.save();
 
       const token = generateToken(user._id);
@@ -123,14 +131,15 @@ const verifyOtp = async (req, res) => {
         success: true,
         message: 'OTP verified successfully.',
         token,
-        isFirstTime: !user.isOnboarded,
+        isFirstTime: !hasCompletedProfile,
         user: {
+          _id: user._id,
           id: user._id,
           phoneNumber: user.phoneNumber,
           name: user.name,
           bankName: user.bankName,
           accountNumber: user.accountNumber,
-          isOnboarded: user.isOnboarded,
+          isOnboarded: hasCompletedProfile,
           tutorialStatus: user.tutorialStatus,
         },
         isDbConnected: true,
@@ -147,20 +156,30 @@ const verifyOtp = async (req, res) => {
     }
 
     const user = fallbackStore.getOrCreateUser(cleanPhone);
+    const hasCompletedProfile = Boolean(
+      user.isOnboarded ||
+      (user.name && user.name.trim() !== '' && !user.name.startsWith('Customer ') && user.name !== 'Customer')
+    );
+    if (hasCompletedProfile && !user.isOnboarded) {
+      user.isOnboarded = true;
+      fallbackStore.updateUser(user._id, { isOnboarded: true });
+    }
+
     const token = generateToken(user._id);
 
     return res.status(200).json({
       success: true,
       message: 'OTP verified successfully (Session Mode).',
       token,
-      isFirstTime: !user.isOnboarded,
+      isFirstTime: !hasCompletedProfile,
       user: {
+        _id: user._id,
         id: user._id,
         phoneNumber: user.phoneNumber,
         name: user.name,
         bankName: user.bankName,
         accountNumber: user.accountNumber,
-        isOnboarded: user.isOnboarded,
+        isOnboarded: hasCompletedProfile,
         tutorialStatus: user.tutorialStatus,
       },
       isDbConnected: false,
@@ -212,7 +231,6 @@ const firebaseLogin = async (req, res) => {
 
     if (isDbReady()) {
       let user = await User.findOne({ phoneNumber: cleanPhone });
-      let isFirstTime = false;
 
       if (!user) {
         user = new User({
@@ -220,7 +238,15 @@ const firebaseLogin = async (req, res) => {
           isOnboarded: false,
         });
         await user.save();
-        isFirstTime = true;
+      }
+
+      const hasCompletedProfile = Boolean(
+        user.isOnboarded ||
+        (user.name && user.name.trim() !== '' && !user.name.startsWith('Customer ') && user.name !== 'Customer')
+      );
+      if (hasCompletedProfile && !user.isOnboarded) {
+        user.isOnboarded = true;
+        await user.save();
       }
 
       const token = generateToken(user._id);
@@ -229,14 +255,15 @@ const firebaseLogin = async (req, res) => {
         success: true,
         message: 'Google Firebase Phone OTP verified successfully.',
         token,
-        isFirstTime: !user.isOnboarded,
+        isFirstTime: !hasCompletedProfile,
         user: {
+          _id: user._id,
           id: user._id,
           phoneNumber: user.phoneNumber,
           name: user.name,
           bankName: user.bankName,
           accountNumber: user.accountNumber,
-          isOnboarded: user.isOnboarded,
+          isOnboarded: hasCompletedProfile,
           tutorialStatus: user.tutorialStatus,
         },
         isDbConnected: true,
@@ -245,20 +272,30 @@ const firebaseLogin = async (req, res) => {
 
     // In-memory fallback
     const user = fallbackStore.getOrCreateUser(cleanPhone);
+    const hasCompletedProfile = Boolean(
+      user.isOnboarded ||
+      (user.name && user.name.trim() !== '' && !user.name.startsWith('Customer ') && user.name !== 'Customer')
+    );
+    if (hasCompletedProfile && !user.isOnboarded) {
+      user.isOnboarded = true;
+      fallbackStore.updateUser(user._id, { isOnboarded: true });
+    }
+
     const token = generateToken(user._id);
 
     return res.status(200).json({
       success: true,
       message: 'Google Firebase Phone OTP verified successfully (Session Mode).',
       token,
-      isFirstTime: !user.isOnboarded,
+      isFirstTime: !hasCompletedProfile,
       user: {
+        _id: user._id,
         id: user._id,
         phoneNumber: user.phoneNumber,
         name: user.name,
         bankName: user.bankName,
         accountNumber: user.accountNumber,
-        isOnboarded: user.isOnboarded,
+        isOnboarded: hasCompletedProfile,
         tutorialStatus: user.tutorialStatus,
       },
       isDbConnected: false,

@@ -81,46 +81,58 @@ const updateTutorialStatus = async (req, res) => {
 
     if (isDbReady()) {
       const user = await User.findById(userId);
-      if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-
-      if (!user.tutorialStatus) {
-        user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+      if (user) {
+        if (!user.tutorialStatus) {
+          user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+        }
+        user.tutorialStatus[modName] = Boolean(completed);
+        user.markModified('tutorialStatus');
+        await user.save();
       }
-
-      user.tutorialStatus[modName] = Boolean(completed);
-      user.markModified('tutorialStatus');
-      await user.save();
-
-      return res.status(200).json({
-        success: true,
-        message: `Tutorial for ${modName} marked as ${completed ? 'completed' : 'pending'}.`,
-        tutorialStatus: user.tutorialStatus,
-      });
     }
 
-    res.status(200).json({
+    const updatedStatus = fallbackStore.updateTutorialStatus(userId, modName, completed);
+
+    return res.status(200).json({
       success: true,
-      message: `Tutorial for ${modName} updated (Session Mode).`,
-      tutorialStatus: { dashboard: true, transactions: true, recurring: true, reports: true },
-      isDbConnected: false,
+      message: `Tutorial for ${modName} marked as ${completed ? 'completed' : 'pending'}.`,
+      tutorialStatus: updatedStatus,
+      isDbConnected: isDbReady(),
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to update tutorial progress.' });
+    res.status(500).json({ success: false, message: 'Failed to update tutorial progress: ' + err.message });
   }
 };
 
 const resetTutorialStatus = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : 'demo-user-id';
+    const targetModule = req.body ? req.body.module : null;
+
     if (isDbReady()) {
       const user = await User.findById(userId);
-      if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-      user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
-      user.markModified('tutorialStatus');
-      await user.save();
-      return res.status(200).json({ success: true, message: 'Tutorial reset successfully.' });
+      if (user) {
+        if (!user.tutorialStatus) {
+          user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+        }
+        if (targetModule) {
+          user.tutorialStatus[targetModule] = false;
+        } else {
+          user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+        }
+        user.markModified('tutorialStatus');
+        await user.save();
+      }
     }
-    res.status(200).json({ success: true, message: 'Tutorial reset (Session Mode).' });
+
+    const updatedStatus = fallbackStore.resetTutorialStatus(userId, targetModule);
+
+    res.status(200).json({
+      success: true,
+      message: targetModule ? `Tutorial for ${targetModule} reset.` : 'All tutorials reset.',
+      tutorialStatus: updatedStatus,
+      isDbConnected: isDbReady(),
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to reset tutorial.' });
   }

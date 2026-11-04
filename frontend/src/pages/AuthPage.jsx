@@ -107,6 +107,47 @@ export const AuthPage = ({ onAuthSuccess }) => {
     }
   };
 
+  const handleSuccessfulVerification = (res, rawPhone) => {
+    const cleanPhone = (res.user?.phoneNumber || rawPhone || phoneNumber).replace(/[^0-9]/g, '').slice(-10);
+    const localOnboarded = localStorage.getItem(`rb_customer_onboarded_${cleanPhone}`) === 'true';
+    const localName = localStorage.getItem(`rb_customer_name_${cleanPhone}`);
+    const hasCustomName = Boolean(
+      res.user?.name &&
+      res.user.name.trim() !== '' &&
+      !res.user.name.startsWith('Customer ') &&
+      res.user.name !== 'Customer'
+    );
+
+    const isAlreadyOnboarded = Boolean(
+      res.user?.isOnboarded ||
+      hasCustomName ||
+      localOnboarded ||
+      Boolean(localName && localName.trim() !== '')
+    );
+
+    const finalUser = {
+      ...res.user,
+      name: (hasCustomName ? res.user.name : localName) || res.user?.name || `Customer ${cleanPhone.slice(-4)}`,
+      isOnboarded: isAlreadyOnboarded,
+    };
+
+    // Auto-sync customer name to backend if backend was cold-started or lacked name
+    if (localOnboarded && localName && (!res.user?.name || res.user.name.startsWith('Customer '))) {
+      api.updateProfile({
+        name: localName,
+        bankName: localStorage.getItem(`rb_customer_bank_${cleanPhone}`) || '',
+        accountNumber: localStorage.getItem(`rb_customer_acc_${cleanPhone}`) || '',
+      }).catch(() => {});
+    }
+
+    login(res.token, finalUser);
+    if (onAuthSuccess) {
+      onAuthSuccess(!isAlreadyOnboarded);
+    } else {
+      navigate(isAlreadyOnboarded ? '/dashboard' : '/onboarding');
+    }
+  };
+
   const handleVerifyOtp = async () => {
     setError('');
     if (!otp || otp.trim().length < 4) {
@@ -126,21 +167,11 @@ export const AuthPage = ({ onAuthSuccess }) => {
           idToken,
           uid: fbUser.uid,
         });
-        login(res.token, res.user);
-        if (onAuthSuccess) {
-          onAuthSuccess(res.isFirstTime);
-        } else {
-          navigate(res.isFirstTime ? '/onboarding' : '/dashboard');
-        }
+        handleSuccessfulVerification(res, fbUser.phoneNumber || phoneNumber);
       } else {
         // Verify via Server API
         const res = await api.verifyOtp(phoneNumber, otp.trim());
-        login(res.token, res.user);
-        if (onAuthSuccess) {
-          onAuthSuccess(res.isFirstTime);
-        } else {
-          navigate(res.isFirstTime ? '/onboarding' : '/dashboard');
-        }
+        handleSuccessfulVerification(res, phoneNumber);
       }
     } catch (err) {
       console.error('[Verify OTP Error]:', err);
@@ -148,12 +179,7 @@ export const AuthPage = ({ onAuthSuccess }) => {
       if (otp.trim() === '123456') {
         try {
           const res = await api.verifyOtp(phoneNumber, '123456');
-          login(res.token, res.user);
-          if (onAuthSuccess) {
-            onAuthSuccess(res.isFirstTime);
-          } else {
-            navigate(res.isFirstTime ? '/onboarding' : '/dashboard');
-          }
+          handleSuccessfulVerification(res, phoneNumber);
           return;
         } catch (e) {}
       }
@@ -235,13 +261,20 @@ export const AuthPage = ({ onAuthSuccess }) => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
         {/* Brand Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-white shadow-purple-glow mb-3">
-            <Wallet className="w-8 h-8 text-brand-700" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white shadow-purple-glow mb-3 p-1 overflow-hidden">
+            <img
+              src="/logo-icon.png"
+              alt="Logo"
+              className="w-full h-full object-contain rounded-2xl"
+            />
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            RB Payment Management
+            Payment Management
           </h1>
-          <p className="mt-1.5 text-xs text-brand-200">
+          <p className="mt-1 text-sm text-brand-200 font-bold tracking-wide">
+            Every Rupee Matters
+          </p>
+          <p className="mt-0.5 text-xs text-brand-300">
             Secure, intelligent income, expenses & recurring loan tracking
           </p>
         </div>
@@ -444,6 +477,11 @@ export const AuthPage = ({ onAuthSuccess }) => {
             <Lock className="w-3.5 h-3.5 text-slate-400" />
             <span>256-bit encrypted bank-grade authentication</span>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center text-xs text-brand-200">
+          poweredBy <span className="font-extrabold text-white">RB NextWave</span>
         </div>
       </div>
 

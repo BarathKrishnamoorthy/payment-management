@@ -119,7 +119,16 @@ export const TransactionsPage = ({ initialType = null }) => {
 
   // First-time walkthrough trigger
   useEffect(() => {
-    if (user && !user.tutorialStatus?.transactions && !loading) {
+    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawId = user?._id || user?.id || '';
+    const isDoneLocally =
+      (phone && localStorage.getItem(`rb_tut_transactions_${phone}`) === 'done') ||
+      (rawId && localStorage.getItem(`rb_tut_transactions_${rawId}`) === 'done') ||
+      localStorage.getItem('rb_tut_transactions_customer') === 'done' ||
+      localStorage.getItem('rb_tut_transactions_done') === 'done';
+    const isDoneServer = Boolean(user?.tutorialStatus?.transactions);
+
+    if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
@@ -127,6 +136,12 @@ export const TransactionsPage = ({ initialType = null }) => {
 
   const handleFinishTour = () => {
     setShowTour(false);
+    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+    const rawId = user?._id || user?.id || '';
+    if (phone) localStorage.setItem(`rb_tut_transactions_${phone}`, 'done');
+    if (rawId) localStorage.setItem(`rb_tut_transactions_${rawId}`, 'done');
+    localStorage.setItem('rb_tut_transactions_customer', 'done');
+    localStorage.setItem('rb_tut_transactions_done', 'done');
     setModuleTutorialDone('transactions');
   };
 
@@ -291,7 +306,7 @@ export const TransactionsPage = ({ initialType = null }) => {
       {/* Interactive Tour */}
       <ModuleTour
         isOpen={showTour}
-        onClose={() => setShowTour(false)}
+        onClose={handleFinishTour}
         onFinish={handleFinishTour}
         steps={tourSteps}
         moduleName="transactions"

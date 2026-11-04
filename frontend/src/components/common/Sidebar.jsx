@@ -118,15 +118,19 @@ export const Sidebar = ({
               {/* Drawer Header */}
               <div className="p-4 border-b border-purple-100/70 flex items-center justify-between bg-gradient-to-r from-brand-50 to-white">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 flex items-center justify-center text-white shadow-purple-sm">
-                    <Wallet className="w-5 h-5 text-white stroke-[2.2]" />
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-700 to-brand-500 flex items-center justify-center p-0.5 text-white shadow-purple-sm overflow-hidden">
+                    <img
+                      src="/logo-icon.png"
+                      alt="Logo"
+                      className="w-full h-full object-contain rounded-lg"
+                    />
                   </div>
                   <div>
                     <h2 className="text-sm font-extrabold text-slate-900 leading-tight">
-                      RB Payment
+                      Payment Management
                     </h2>
-                    <p className="text-[10px] text-slate-500 font-medium">
-                      Smart Finance
+                    <p className="text-[10px] text-brand-600 font-semibold">
+                      Every Rupee Matters
                     </p>
                   </div>
                 </div>
@@ -201,6 +205,12 @@ export const Sidebar = ({
                 <LogOut className="w-4 h-4 shrink-0" />
                 <span>Logout</span>
               </button>
+
+              <div className="pt-2 text-center border-t border-purple-100/40">
+                <p className="text-[10px] text-slate-400 font-medium">
+                  poweredBy <span className="font-bold text-brand-700">RB NextWave</span>
+                </p>
+              </div>
             </div>
           </div>
         </div>
