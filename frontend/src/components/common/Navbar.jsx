@@ -3,13 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ArrowLeftRight,
-  RotateCcw,
+  Calendar,
   BarChart3,
   User,
   Bell,
   Search,
   ChevronDown,
-  Wallet,
   Menu,
   X
 } from 'lucide-react';
@@ -26,11 +25,38 @@ export const Navbar = ({
   const location = useLocation();
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/transactions', label: 'Income & Expenses', icon: ArrowLeftRight },
-    { path: '/recurring', label: 'Recurring Payments', icon: RotateCcw },
-    { path: '/reports', label: 'Reports', icon: BarChart3 },
-    { path: '/profile', label: 'Profile', icon: User },
+    {
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      isStacked: false,
+    },
+    {
+      path: '/transactions',
+      labelTop: 'Income &',
+      labelBottom: 'Expenses',
+      icon: ArrowLeftRight,
+      isStacked: true,
+    },
+    {
+      path: '/recurring',
+      labelTop: 'Recurring',
+      labelBottom: 'Payments',
+      icon: Calendar,
+      isStacked: true,
+    },
+    {
+      path: '/reports',
+      label: 'Reports',
+      icon: BarChart3,
+      isStacked: false,
+    },
+    {
+      path: '/profile',
+      label: 'Profile',
+      icon: User,
+      isStacked: false,
+    },
   ];
 
   // Customer display details
@@ -39,15 +65,15 @@ export const Navbar = ({
   const initial = (displayName.charAt(0) || 'C').toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-purple-100/70 px-4 sm:px-8 py-3">
-      <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
-        {/* Left: Mobile Hamburger Toggle + Brand Logo Pill */}
-        <div className="flex items-center gap-3">
-          {/* Hamburger Menu Toggle (Mobile only) */}
+    <header className="sticky top-0 z-40 px-3 sm:px-6 pt-3 pb-2 w-full">
+      <div className="max-w-[1600px] mx-auto bg-white rounded-2xl lg:rounded-full border border-purple-100 shadow-[0_6px_25px_rgba(124,58,237,0.06)] px-4 sm:px-6 py-2 flex items-center justify-between gap-3 sm:gap-4 transition-all">
+        {/* Left: Brand Logo & Title */}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Hamburger Menu Toggle (Mobile & Tablet) */}
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="md:hidden p-2 rounded-xl border border-purple-100 bg-white hover:bg-brand-50 text-slate-700 transition-colors focus:outline-none"
+            className="lg:hidden p-1.5 rounded-xl border border-purple-100 bg-white hover:bg-purple-50 text-slate-700 transition-colors focus:outline-none"
             aria-label="Toggle Navigation Menu"
           >
             {isMobileMenuOpen ? (
@@ -57,36 +83,27 @@ export const Navbar = ({
             )}
           </button>
 
-          {/* Brand Logo */}
+          {/* Logo + Every Rupee Matters Text */}
           <div
-            className="flex items-center gap-3 cursor-pointer shrink-0"
+            className="flex items-center gap-2.5 cursor-pointer shrink-0"
             onClick={() => navigate('/dashboard')}
           >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-700 via-brand-600 to-brand-500 flex items-center justify-center p-0.5 shadow-purple-md overflow-hidden">
-              <img
-                src="/logo-icon.png"
-                alt="Logo"
-                className="w-full h-full object-contain rounded-xl"
-              />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-base tracking-tight text-slate-900">
-                  Payment Management
-                </span>
-                <span className="text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
-                  PRO
-                </span>
-              </div>
-              <p className="text-[11px] text-brand-600 font-semibold leading-none mt-0.5">
-                Every Rupee Matters
-              </p>
-            </div>
+            <img
+              src="/logo-icon.png"
+              alt="Every Rupee Matters Logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0"
+            />
+            <span className="font-extrabold text-xs sm:text-sm tracking-wider text-[#63278D] font-sans uppercase select-none">
+              EVERY RUPEE MATTERS
+            </span>
           </div>
+
+          {/* Subtle vertical divider matching design */}
+          <div className="h-5 w-[1px] bg-slate-200 ml-1 mr-1 hidden xl:block" />
         </div>
 
-        {/* Center: Top Pill Navigation Tabs (Desktop only) */}
-        <nav className="hidden lg:flex items-center gap-1 bg-white p-1 rounded-2xl">
+        {/* Center: Top Navigation Tabs matching user design */}
+        <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -94,51 +111,80 @@ export const Navbar = ({
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all duration-200 text-left ${
                   isActive
-                    ? 'bg-brand-700 text-white shadow-purple-sm'
-                    : 'text-slate-600 hover:text-brand-700 hover:bg-brand-50/70'
+                    ? 'bg-[#6D28D9] text-white shadow-purple-sm'
+                    : 'text-slate-700 hover:text-brand-700 hover:bg-purple-50/70'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{item.label}</span>
+                <Icon
+                  className={`w-4 h-4 shrink-0 ${
+                    isActive ? 'text-white' : 'text-slate-600'
+                  }`}
+                />
+                {item.isStacked ? (
+                  <div className="flex flex-col text-left leading-[1.05]">
+                    <span
+                      className={`text-[10px] font-bold ${
+                        isActive ? 'text-white' : 'text-slate-800'
+                      }`}
+                    >
+                      {item.labelTop}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold ${
+                        isActive ? 'text-white' : 'text-slate-800'
+                      }`}
+                    >
+                      {item.labelBottom}
+                    </span>
+                  </div>
+                ) : (
+                  <span
+                    className={`text-xs font-bold ${
+                      isActive ? 'text-white' : 'text-slate-800'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
 
         {/* Right: Search, Notification Bell & User Profile */}
-        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-          {/* Search Bar with Ctrl + K (Desktop) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Search Pill Input with Ctrl + K */}
           <div
             onClick={() => navigate('/transactions')}
-            className="hidden md:flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-purple-100 bg-purple-50/30 hover:bg-purple-50/60 text-slate-400 text-xs font-medium cursor-pointer transition-colors w-48 sm:w-60"
+            className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F8FAFC] border border-slate-200/90 text-slate-400 text-xs cursor-pointer hover:border-purple-300 transition-colors w-44 lg:w-56"
           >
-            <Search className="w-3.5 h-3.5 text-slate-400" />
-            <span className="flex-1 text-slate-500 text-[11px] truncate">Search transactions...</span>
-            <kbd className="px-1.5 py-0.5 rounded-md bg-white border border-purple-200 text-[10px] font-bold text-slate-500 shadow-2xs">
+            <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="flex-1 text-[11px] text-slate-400 font-normal truncate">
+              Search transactions...
+            </span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-[10px] font-medium text-slate-500 shadow-2xs">
               Ctrl + K
             </kbd>
           </div>
 
-          {/* Notification Bell */}
+          {/* Notification Bell with indicator dot */}
           <button
             onClick={onOpenNotifications}
-            className="relative p-2 rounded-xl border border-purple-100 bg-white hover:bg-brand-50 text-slate-600 transition-colors"
+            className="relative p-2 rounded-full hover:bg-purple-50 text-slate-700 transition-colors"
             title="Notifications"
           >
-            <Bell className="w-4 h-4 text-slate-600" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand-600 ring-2 ring-white" />
-            )}
+            <Bell className="w-4 h-4 text-slate-700" />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#7C3AED]" />
           </button>
 
           {/* User Profile Pill */}
           <div
             onClick={() => navigate('/profile')}
-            className="flex items-center gap-2 pl-1 sm:pl-1.5 pr-2 py-1 rounded-2xl hover:bg-purple-50/80 cursor-pointer transition-colors"
+            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-full hover:bg-purple-50/80 cursor-pointer transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-brand-600 text-white font-extrabold text-xs flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-[#7C3AED] text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0">
               {initial}
             </div>
             <div className="text-left hidden sm:block">
@@ -146,12 +192,12 @@ export const Navbar = ({
                 {displayName}
               </p>
               {displayPhone && (
-                <p className="text-[10px] text-slate-400 font-medium leading-tight">
+                <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">
                   {displayPhone}
                 </p>
               )}
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block ml-0.5" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
           </div>
         </div>
       </div>
