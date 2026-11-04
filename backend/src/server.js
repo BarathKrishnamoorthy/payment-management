@@ -26,24 +26,21 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
-// Database Connection
-connectDB().then(async () => {
-  try {
-    const { seedInitialData } = require('./utils/seedHelper');
-    await seedInitialData();
-  } catch (err) {
-    console.warn('[DB] Auto-seed skip:', err.message);
+// Global CORS Middleware - Ensures zero CORS issues on all origins, headers & preflights
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
+  next();
 });
 
 // Security & Utility Middlewares
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -51,8 +48,8 @@ app.use(morgan('dev'));
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -61,7 +58,7 @@ app.use('/api', limiter);
 // Static files (Receipts, Invoices, Attachments)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Health Check API
+// Health Check API (No DB required)
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
@@ -69,6 +66,20 @@ app.get('/api/health', (req, res) => {
     service: 'RB Payment Management Backend API',
     version: '1.0.0',
   });
+});
+
+// Database Connection Middleware (Ensures DB is connected before handling API requests)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('[DB Middleware Error]:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: 'MongoDB Atlas connection required. Please ensure 0.0.0.0/0 is whitelisted in your MongoDB Atlas Network Access: ' + err.message,
+    });
+  }
 });
 
 // Mount Module Endpoints
@@ -81,16 +92,17 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// Daily Cron Job for Recurring Payment Due-Date Reminders (9:00 AM daily)
-cron.schedule('0 9 * * *', async () => {
-  console.log('[Cron] Running daily morning check for recurring payments due today...');
-  await checkAndSendRecurringNotifications();
-});
+// Daily Cron Job for Recurring Payment Due-Date Reminders (Only on persistent server, not serverless)
+if (process.env.VERCEL !== '1') {
+  cron.schedule('0 9 * * *', async () => {
+    console.log('[Cron] Running daily morning check for recurring payments due today...');
+    await checkAndSendRecurringNotifications();
+  });
 
-// Trigger initial check on server startup (delayed 5s to ensure DB is ready)
-setTimeout(() => {
-  checkAndSendRecurringNotifications();
-}, 5000);
+  setTimeout(() => {
+    checkAndSendRecurringNotifications();
+  }, 5000);
+}
 
 // Error Middlewares
 app.use(notFound);
