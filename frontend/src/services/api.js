@@ -42,6 +42,17 @@ export const api = {
     return handleResponse(res);
   },
 
+  firebaseLogin: async (data) => {
+    const res = await fetch(`${BASE_URL}/auth/firebase-login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   getMe: async () => {
     const res = await fetch(`${BASE_URL}/auth/me`, {
       headers: { ...getAuthHeaders() },

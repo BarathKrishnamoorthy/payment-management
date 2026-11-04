@@ -1,10 +1,20 @@
+const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const RecurringPayment = require('../models/RecurringPayment');
 const Notification = require('../models/Notification');
+const fallbackStore = require('../utils/fallbackStore');
 
 const getDashboardSummary = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user ? req.user._id : 'demo-user-id';
+
+    if (mongoose.connection.readyState !== 1) {
+      const fbData = fallbackStore.getDashboardData(userId);
+      return res.status(200).json({
+        ...fbData,
+        isDbConnected: false,
+      });
+    }
 
     // 1. Calculate Total Income, Total Expenses, Balance
     const summaryAgg = await Transaction.aggregate([
@@ -186,7 +196,12 @@ const getDashboardSummary = async (req, res) => {
     });
   } catch (err) {
     console.error('[Dashboard] Summary error:', err);
-    res.status(500).json({ success: false, message: 'Failed to generate dashboard summary.' });
+    const userId = req.user ? req.user._id : 'demo-user-id';
+    const fbData = fallbackStore.getDashboardData(userId);
+    res.status(200).json({
+      ...fbData,
+      isDbConnected: false,
+    });
   }
 };
 

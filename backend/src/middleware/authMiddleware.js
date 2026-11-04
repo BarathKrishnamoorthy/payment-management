@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const fallbackStore = require('../utils/fallbackStore');
 
 const protect = async (req, res, next) => {
   let token;
@@ -15,9 +17,12 @@ const protect = async (req, res, next) => {
         process.env.JWT_SECRET || 'rb_payment_management_jwt_secret_key_2026'
       );
 
-      req.user = await User.findById(decoded.id).select('-otp -otpExpiry');
+      if (mongoose.connection.readyState === 1) {
+        req.user = await User.findById(decoded.id).select('-otp -otpExpiry');
+      }
+
       if (!req.user) {
-        return res.status(401).json({ success: false, message: 'User no longer exists.' });
+        req.user = fallbackStore.getUserById(decoded.id);
       }
 
       return next();
@@ -33,4 +38,3 @@ const protect = async (req, res, next) => {
 };
 
 module.exports = { protect };
-

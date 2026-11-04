@@ -68,18 +68,25 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Database Connection Middleware (Ensures DB is connected before handling API requests)
+// Resilient Database Connection Middleware (Zero-Downtime fallback if Atlas is pending whitelist)
+let isConnecting = false;
+let lastAttempt = 0;
+
 app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error('[DB Middleware Error]:', err.message);
-    return res.status(503).json({
-      success: false,
-      message: 'MongoDB Atlas connection required. Please ensure 0.0.0.0/0 is whitelisted in your MongoDB Atlas Network Access: ' + err.message,
-    });
+  const ready = require('mongoose').connection.readyState === 1;
+  if (!ready && !isConnecting && Date.now() - lastAttempt > 15000) {
+    lastAttempt = Date.now();
+    isConnecting = true;
+    connectDB()
+      .catch(() => {})
+      .finally(() => {
+        isConnecting = false;
+      });
   }
+
+  req.isDbConnected = require('mongoose').connection.readyState === 1;
+  res.setHeader('X-Database-Connected', req.isDbConnected ? 'true' : 'false');
+  next();
 });
 
 // Mount Module Endpoints

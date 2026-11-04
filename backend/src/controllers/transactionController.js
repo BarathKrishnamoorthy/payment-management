@@ -1,7 +1,11 @@
+const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
+const fallbackStore = require('../utils/fallbackStore');
 const { parseStatementFile } = require('../utils/statementParser');
 const fs = require('fs');
 const path = require('path');
+
+const isDbReady = () => mongoose.connection.readyState === 1;
 
 // CREATE Transaction
 const createTransaction = async (req, res) => {
@@ -26,14 +30,37 @@ const createTransaction = async (req, res) => {
       attachmentSize = req.file.size;
     }
 
-    const transaction = await Transaction.create({
-      user: req.user._id,
+    if (isDbReady()) {
+      const transaction = await Transaction.create({
+        user: req.user._id,
+        type,
+        amount: Number(amount),
+        date: date ? new Date(date) : new Date(),
+        category: category ? category.trim() : (type === 'credit' ? 'Income' : 'General Expense'),
+        reason: reason ? reason.trim() : '',
+        referenceNumber: referenceNumber ? referenceNumber.trim() : `TXN-${Date.now().toString(36).toUpperCase()}`,
+        attachmentUrl,
+        attachmentName,
+        attachmentSize,
+        source: 'manual',
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `${type === 'credit' ? 'Income (Credit)' : 'Expense (Debit)'} recorded successfully!`,
+        transaction,
+      });
+    }
+
+    // In-memory fallback
+    const newTx = fallbackStore.createTransaction({
+      user: req.user ? req.user._id : 'demo-user-id',
       type,
       amount: Number(amount),
-      date: date ? new Date(date) : new Date(),
+      date: date || new Date().toISOString(),
       category: category ? category.trim() : (type === 'credit' ? 'Income' : 'General Expense'),
       reason: reason ? reason.trim() : '',
-      referenceNumber: referenceNumber ? referenceNumber.trim() : `TXN-${Date.now().toString(36).toUpperCase()}`,
+      referenceNumber: referenceNumber || `TXN-${Date.now().toString(36).toUpperCase()}`,
       attachmentUrl,
       attachmentName,
       attachmentSize,
@@ -42,8 +69,9 @@ const createTransaction = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `${type === 'credit' ? 'Income (Credit)' : 'Expense (Debit)'} recorded successfully!`,
-      transaction,
+      message: `${type === 'credit' ? 'Income (Credit)' : 'Expense (Debit)'} recorded (Session Mode)!`,
+      transaction: newTx,
+      isDbConnected: false,
     });
   } catch (err) {
     console.error('[Transactions] Create error:', err);
@@ -54,6 +82,19 @@ const createTransaction = async (req, res) => {
 // GET All Transactions with search, filter, pagination
 const getTransactions = async (req, res) => {
   try {
+    if (!isDbReady()) {
+      const txs = fallbackStore.getTransactions(req.user ? req.user._id : 'demo-user-id');
+      const totalCredit = txs.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
+      const totalDebit = txs.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
+      return res.status(200).json({
+        success: true,
+        transactions: txs,
+        pagination: { total: txs.length, page: 1, limit: 20, totalPages: 1 },
+        summary: { totalCredit, totalDebit, net: totalCredit - totalDebit },
+        isDbConnected: false,
+      });
+    }
+
     const { type, category, startDate, endDate, search, page = 1, limit = 20, sortBy = 'date', sortOrder = 'desc' } = req.query;
 
     const query = { user: req.user._id };
@@ -188,6 +229,11 @@ const updateTransaction = async (req, res) => {
 // DELETE Transaction
 const deleteTransaction = async (req, res) => {
   try {
+    if (!isDbReady()) {
+      fallbackStore.deleteTransaction(req.params.id);
+      return res.status(200).json({ success: true, message: 'Transaction deleted successfully (Session Mode).' });
+    }
+
     const transaction = await Transaction.findOne({ _id: req.params.id, user: req.user._id });
     if (!transaction) {
       return res.status(404).json({ success: false, message: 'Transaction not found.' });

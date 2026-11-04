@@ -4,6 +4,24 @@ const { checkAndSendRecurringNotifications } = require('../services/notification
 
 const getNotifications = async (req, res) => {
   try {
+    if (require('mongoose').connection.readyState !== 1) {
+      return res.status(200).json({
+        success: true,
+        unreadCount: 1,
+        notifications: [
+          {
+            _id: 'notif-welcome',
+            title: 'Welcome to RB Payment Management',
+            message: 'Your personal finance and recurring loan dashboard is ready.',
+            type: 'system',
+            isRead: false,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        isDbConnected: false,
+      });
+    }
+
     const notifications = await Notification.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .limit(30);
