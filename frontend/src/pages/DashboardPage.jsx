@@ -132,7 +132,7 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
     }
   };
 
-  const displayName = user?.name || 'Barathk';
+  const displayName = user?.name || (user?.phoneNumber ? `Customer (${user.phoneNumber.slice(-4)})` : 'Customer');
 
   // Recurring Schedules Computations ("before 3 days to due date and then hide it")
   const rawSchedules = data?.allUpcomingPayments || data?.upcomingPayments || [];

@@ -82,8 +82,10 @@ const createTransaction = async (req, res) => {
 // GET All Transactions with search, filter, pagination
 const getTransactions = async (req, res) => {
   try {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+
     if (!isDbReady()) {
-      const txs = fallbackStore.getTransactions(req.user ? req.user._id : 'demo-user-id');
+      const txs = fallbackStore.getTransactions(userId, req.query);
       const totalCredit = txs.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0);
       const totalDebit = txs.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0);
       return res.status(200).json({
@@ -229,8 +231,13 @@ const updateTransaction = async (req, res) => {
 // DELETE Transaction
 const deleteTransaction = async (req, res) => {
   try {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+
     if (!isDbReady()) {
-      fallbackStore.deleteTransaction(req.params.id);
+      const deleted = fallbackStore.deleteTransaction(req.params.id, userId);
+      if (!deleted) {
+        return res.status(404).json({ success: false, message: 'Transaction not found or unauthorized.' });
+      }
       return res.status(200).json({ success: true, message: 'Transaction deleted successfully (Session Mode).' });
     }
 

@@ -319,7 +319,7 @@ export const ReportsPage = () => {
                 <BarChart data={analytics.expenseCategories} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis
-                    dataKey="_id"
+                    dataKey={(d) => d.category || d._id}
                     stroke="#94A3B8"
                     fontSize={10}
                     interval={0}
@@ -363,11 +363,11 @@ export const ReportsPage = () => {
           </div>
 
           <div className="space-y-3 my-auto py-4">
-            {!analytics?.recurringCommitments || analytics.recurringCommitments.length === 0 ? (
+            {(!analytics?.recurringCommitments || (Array.isArray(analytics.recurringCommitments) && analytics.recurringCommitments.length === 0) || analytics.recurringCommitments === 0) ? (
               <div className="text-center text-slate-400 text-xs py-8">
                 No active recurring loans or subscriptions configured.
               </div>
-            ) : (
+            ) : Array.isArray(analytics.recurringCommitments) ? (
               analytics.recurringCommitments.map((item, idx) => (
                 <div key={idx} className="p-3 rounded-2xl bg-brand-50/50 border border-brand-100 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -375,15 +375,25 @@ export const ReportsPage = () => {
                       {idx + 1}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800">{item._id}</h4>
-                      <p className="text-[10px] text-slate-400">{item.count} active schedule(s)</p>
+                      <h4 className="text-xs font-bold text-slate-800">{item.title || item.paymentType || item._id}</h4>
+                      <p className="text-[10px] text-slate-400">{item.count || 1} active schedule(s)</p>
                     </div>
                   </div>
                   <span className="text-xs font-black text-slate-900">
-                    {formatCurrency(item.totalMonthlyEquivalent)}/mo
+                    {formatCurrency(item.totalMonthlyEquivalent || item.amount || item.total)}/mo
                   </span>
                 </div>
               ))
+            ) : (
+              <div className="p-4 rounded-2xl bg-brand-50/60 border border-brand-100 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">Total Monthly Commitments</h4>
+                  <p className="text-[10px] text-slate-400">Sum of all active recurring obligations</p>
+                </div>
+                <span className="text-lg font-black text-brand-700">
+                  {formatCurrency(analytics.recurringCommitments)}/mo
+                </span>
+              </div>
             )}
           </div>
 

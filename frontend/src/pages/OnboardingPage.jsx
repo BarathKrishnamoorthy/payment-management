@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   User,
   Phone,
@@ -14,6 +15,7 @@ import confetti from 'canvas-confetti';
 import { useAuth } from '../context/AuthContext';
 
 export const OnboardingPage = ({ onComplete }) => {
+  const navigate = useNavigate();
   const { user, completeOnboarding } = useAuth();
 
   const [name, setName] = useState('');
@@ -53,6 +55,8 @@ export const OnboardingPage = ({ onComplete }) => {
 
       if (onComplete) {
         onComplete();
+      } else {
+        navigate('/dashboard');
       }
     } catch (err) {
       setError(err.message || 'Failed to complete profile onboarding.');

@@ -22,10 +22,12 @@ import {
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { ModuleTour } from '../components/walkthrough/ModuleTour';
 
 export const RecurringPage = () => {
   const { user, setModuleTutorialDone } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [recurringList, setRecurringList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ export const RecurringPage = () => {
   const [statusFilter, setStatusFilter] = useState('Active');
 
   // Modals state
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(searchParams.get('action') === 'add');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isEditing, setIsEditing] = useState(false);

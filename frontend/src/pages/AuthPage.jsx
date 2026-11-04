@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Phone,
   ShieldCheck,
@@ -30,6 +31,7 @@ import {
 
 export const AuthPage = ({ onAuthSuccess }) => {
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -127,6 +129,8 @@ export const AuthPage = ({ onAuthSuccess }) => {
         login(res.token, res.user);
         if (onAuthSuccess) {
           onAuthSuccess(res.isFirstTime);
+        } else {
+          navigate(res.isFirstTime ? '/onboarding' : '/dashboard');
         }
       } else {
         // Verify via Server API
@@ -134,6 +138,8 @@ export const AuthPage = ({ onAuthSuccess }) => {
         login(res.token, res.user);
         if (onAuthSuccess) {
           onAuthSuccess(res.isFirstTime);
+        } else {
+          navigate(res.isFirstTime ? '/onboarding' : '/dashboard');
         }
       }
     } catch (err) {
@@ -143,7 +149,11 @@ export const AuthPage = ({ onAuthSuccess }) => {
         try {
           const res = await api.verifyOtp(phoneNumber, '123456');
           login(res.token, res.user);
-          if (onAuthSuccess) onAuthSuccess(res.isFirstTime);
+          if (onAuthSuccess) {
+            onAuthSuccess(res.isFirstTime);
+          } else {
+            navigate(res.isFirstTime ? '/onboarding' : '/dashboard');
+          }
           return;
         } catch (e) {}
       }

@@ -250,6 +250,8 @@ const updateRecurringPayment = async (req, res) => {
 // DELETE Recurring Payment
 const deleteRecurringPayment = async (req, res) => {
   try {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+
     if (isDbReady()) {
       const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
       if (!recurring) {
@@ -264,7 +266,10 @@ const deleteRecurringPayment = async (req, res) => {
       });
     }
 
-    fallbackStore.deleteRecurring(req.params.id);
+    const deleted = fallbackStore.deleteRecurring(req.params.id, userId);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found or unauthorized.' });
+    }
     res.status(200).json({
       success: true,
       message: 'Recurring payment deleted successfully (Session Mode).',
@@ -277,6 +282,8 @@ const deleteRecurringPayment = async (req, res) => {
 // MARK AS PAID (Advances nextDueDate by 30 days & hides from upcoming dues)
 const markAsPaid = async (req, res) => {
   try {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+
     if (isDbReady()) {
       const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
       if (!recurring) {
@@ -325,7 +332,10 @@ const markAsPaid = async (req, res) => {
     }
 
     // In-memory fallback
-    const updated = fallbackStore.markRecurringPaid(req.params.id);
+    const updated = fallbackStore.markRecurringPaid(req.params.id, userId);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found or unauthorized.' });
+    }
     res.status(200).json({
       success: true,
       message: 'Payment recorded successfully! Next due date advanced by 30 days.',

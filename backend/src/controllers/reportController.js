@@ -1,42 +1,20 @@
+const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const RecurringPayment = require('../models/RecurringPayment');
+const fallbackStore = require('../utils/fallbackStore');
 
 const getReportAnalytics = async (req, res) => {
   try {
-    if (require('mongoose').connection.readyState !== 1) {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+    const { startDate, endDate, timeframe = 'all' } = req.query;
+
+    if (mongoose.connection.readyState !== 1) {
+      const data = fallbackStore.getReportAnalytics(userId, timeframe, startDate, endDate);
       return res.status(200).json({
-        success: true,
-        summary: {
-          totalIncome: 185000,
-          totalExpense: 64200,
-          netSavings: 120800,
-          savingsRate: 65.3,
-          transactionCount: 4,
-          incomeCount: 2,
-          expenseCount: 2,
-        },
-        expenseCategories: [
-          { category: 'Rent', total: 22000, count: 1, percentage: 34.3 },
-          { category: 'EMI', total: 18500, count: 1, percentage: 28.8 },
-          { category: 'Groceries', total: 14500, count: 1, percentage: 22.6 },
-          { category: 'Bills', total: 9200, count: 1, percentage: 14.3 },
-        ],
-        incomeCategories: [
-          { category: 'Salary', total: 150000, count: 1, percentage: 81.1 },
-          { category: 'Freelance', total: 35000, count: 1, percentage: 18.9 },
-        ],
-        trendData: [
-          { _id: '2026-01', income: 168000, expense: 59000 },
-          { _id: '2026-02', income: 175000, expense: 62000 },
-          { _id: '2026-03', income: 185000, expense: 64200 },
-        ],
-        recurringCommitments: 21198,
+        ...data,
         isDbConnected: false,
       });
     }
-
-    const userId = req.user._id;
-    const { startDate, endDate, timeframe = 'all' } = req.query;
 
     const query = { user: userId };
     const now = new Date();
@@ -82,8 +60,7 @@ const getReportAnalytics = async (req, res) => {
       if (s._id === 'credit') {
         totalIncome = s.total;
         incomeCount = s.count;
-      }
-      if (s._id === 'debit') {
+      } else if (s._id === 'debit') {
         totalExpense = s.total;
         expenseCount = s.count;
       }
@@ -93,7 +70,7 @@ const getReportAnalytics = async (req, res) => {
     const savingsRate = totalIncome > 0 ? ((netSavings / totalIncome) * 100).toFixed(1) : 0;
 
     // 2. Category Breakdown for Expenses
-    const expenseCategories = await Transaction.aggregate([
+    const expenseCategoryAgg = await Transaction.aggregate([
       { $match: { ...query, type: 'debit' } },
       {
         $group: {
@@ -105,8 +82,15 @@ const getReportAnalytics = async (req, res) => {
       { $sort: { total: -1 } },
     ]);
 
+    const expenseCategories = expenseCategoryAgg.map((item) => ({
+      category: item._id || 'Uncategorized',
+      total: item.total,
+      count: item.count,
+      percentage: totalExpense > 0 ? ((item.total / totalExpense) * 100).toFixed(1) : 0,
+    }));
+
     // 3. Category Breakdown for Income
-    const incomeCategories = await Transaction.aggregate([
+    const incomeCategoryAgg = await Transaction.aggregate([
       { $match: { ...query, type: 'credit' } },
       {
         $group: {
@@ -118,45 +102,40 @@ const getReportAnalytics = async (req, res) => {
       { $sort: { total: -1 } },
     ]);
 
-    // 4. Daily / Monthly trend depending on scope
+    const incomeCategories = incomeCategoryAgg.map((item) => ({
+      category: item._id || 'General Income',
+      total: item.total,
+      count: item.count,
+      percentage: totalIncome > 0 ? ((item.total / totalIncome) * 100).toFixed(1) : 0,
+    }));
+
+    // 4. Monthly Trend Data (Last 6 Months)
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const trendAgg = await Transaction.aggregate([
-      { $match: query },
       {
-        $group: {
-          _id: {
-            year: { $year: '$date' },
-            month: { $month: '$date' },
-            day: { $dayOfMonth: '$date' },
-            type: '$type',
-          },
-          total: { $sum: '$amount' },
+        $match: {
+          user: userId,
+          date: { $gte: sixMonthsAgo },
         },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
+          income: {
+            $sum: { $cond: [{ $eq: ['$type', 'credit'] }, '$amount', 0] },
+          },
+          expense: {
+            $sum: { $cond: [{ $eq: ['$type', 'debit'] }, '$amount', 0] },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
     ]);
 
-    // 5. Recurring commitment summary
+    // 5. Active Recurring Commitments Total
     const recurringCommitments = await RecurringPayment.aggregate([
       { $match: { user: userId, status: 'Active' } },
-      {
-        $group: {
-          _id: '$paymentType',
-          totalMonthlyEquivalent: {
-            $sum: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ['$recurrenceType', 'Daily'] }, then: { $multiply: ['$amount', 30] } },
-                  { case: { $eq: ['$recurrenceType', 'Monthly'] }, then: '$amount' },
-                  { case: { $eq: ['$recurrenceType', 'Quarterly'] }, then: { $divide: ['$amount', 3] } },
-                  { case: { $eq: ['$recurrenceType', 'Yearly'] }, then: { $divide: ['$amount', 12] } },
-                ],
-                default: '$amount',
-              },
-            },
-          },
-          count: { $sum: 1 },
-        },
-      },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
 
     res.status(200).json({
@@ -173,7 +152,7 @@ const getReportAnalytics = async (req, res) => {
       expenseCategories,
       incomeCategories,
       trendData: trendAgg,
-      recurringCommitments,
+      recurringCommitments: recurringCommitments.length > 0 ? recurringCommitments[0].total : 0,
     });
   } catch (err) {
     console.error('[Reports] Analytics error:', err);
@@ -182,4 +161,3 @@ const getReportAnalytics = async (req, res) => {
 };
 
 module.exports = { getReportAnalytics };
-

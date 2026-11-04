@@ -2,27 +2,24 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const { checkAndSendRecurringNotifications } = require('../services/notificationService');
 
+const fallbackStore = require('../utils/fallbackStore');
+
 const getNotifications = async (req, res) => {
   try {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+
     if (require('mongoose').connection.readyState !== 1) {
+      const list = fallbackStore.getNotifications(userId);
+      const unreadCount = list.filter((n) => !n.isRead).length;
       return res.status(200).json({
         success: true,
-        unreadCount: 1,
-        notifications: [
-          {
-            _id: 'notif-welcome',
-            title: 'Welcome to RB Payment Management',
-            message: 'Your personal finance and recurring loan dashboard is ready.',
-            type: 'system',
-            isRead: false,
-            createdAt: new Date().toISOString(),
-          },
-        ],
+        unreadCount,
+        notifications: list,
         isDbConnected: false,
       });
     }
 
-    const notifications = await Notification.find({ user: req.user._id })
+    const notifications = await Notification.find({ user: userId })
       .sort({ createdAt: -1 })
       .limit(30);
 

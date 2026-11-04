@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
 import { NotificationDrawer } from './components/common/NotificationDrawer';
 import { ModuleGuidanceModal } from './components/guidance/ModuleGuidanceModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuthPage } from './pages/AuthPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -11,29 +13,61 @@ import { TransactionsPage } from './pages/TransactionsPage';
 import { RecurringPage } from './pages/RecurringPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { api } from './services/api';
 
-export function App() {
-  const { isAuthenticated, isOnboarded, loading, user } = useAuth();
+// Branded loading spinner
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-brand-900 flex flex-col items-center justify-center text-white">
+    <div className="w-12 h-12 rounded-2xl bg-brand-600 animate-spin flex items-center justify-center mb-4 shadow-purple-lg">
+      <div className="w-4 h-4 bg-white rounded-full" />
+    </div>
+    <p className="text-sm font-bold tracking-wider text-brand-200">
+      Loading RB Payment Management...
+    </p>
+  </div>
+);
 
-  const [activePage, setActivePage] = useState('dashboard');
+// Public Route Guard (Login / Auth)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, isOnboarded, loading } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+  if (isAuthenticated) {
+    if (!isOnboarded) return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
+// Onboarding Route Guard (First-time customers)
+const OnboardingRoute = ({ children }) => {
+  const { isAuthenticated, isOnboarded, loading } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (isOnboarded) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+// Main Authenticated Application Layout
+const AppLayout = ({ children, activeModule }) => {
+  const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showGuidance, setShowGuidance] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Quick action props
-  const [txnPresetType, setTxnPresetType] = useState(null);
-
-  // Key to force re-mounting page when user clicks "Replay Tour"
-  const [replayKey, setReplayKey] = useState(0);
-
-  // Fetch notifications
+  // Fetch customer notifications
   const fetchNotifications = async () => {
     if (!isAuthenticated) return;
     try {
       const res = await api.getNotifications();
-      if (res.success) {
+      if (res && res.success) {
         setNotifications(res.notifications || []);
         setUnreadCount(res.unreadCount || 0);
       }
@@ -68,109 +102,38 @@ export function App() {
     }
   };
 
-  const handleReplayTour = async () => {
-    try {
-      await api.resetTutorialStatus(activePage);
-      if (user && user.tutorialStatus) {
-        user.tutorialStatus[activePage] = false;
-      }
-      setReplayKey((prev) => prev + 1);
-    } catch (e) {
-      console.warn(e);
-    }
-  };
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
 
-  // Loading spinner
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-900 flex flex-col items-center justify-center text-white">
-        <div className="w-12 h-12 rounded-2xl bg-brand-600 animate-spin flex items-center justify-center mb-4">
-          <div className="w-4 h-4 bg-white rounded-full" />
-        </div>
-        <p className="text-sm font-bold tracking-wider text-brand-200">
-          Loading RB Payment Management...
-        </p>
-      </div>
-    );
-  }
-
-  // 1. Not Authenticated -> Show Login & OTP
-  if (!isAuthenticated) {
-    return <AuthPage />;
-  }
-
-  // 2. First-time login -> Customer Onboarding
-  if (!isOnboarded) {
-    return <OnboardingPage onComplete={() => setActivePage('dashboard')} />;
-  }
-
-  // 3. Authenticated & Onboarded -> Main Application Layout matching screenshot
   return (
     <div className="min-h-screen bg-[#FAF7FF] flex flex-col font-sans relative overflow-x-hidden">
-      {/* Decorative organic purple wave in the top-right corner matching screenshot */}
+      {/* Decorative organic purple background glow */}
       <div className="absolute top-0 right-0 w-[500px] h-[300px] bg-gradient-to-bl from-purple-200/50 via-purple-100/25 to-transparent blur-[80px] pointer-events-none -z-0" />
 
-      {/* Top Navbar */}
+      {/* Top Navbar with Mobile Hamburger Button */}
       <Navbar
-        activePage={activePage}
-        setActivePage={(page) => {
-          setTxnPresetType(null);
-          setActivePage(page);
-        }}
-        onOpenGuidance={() => setShowGuidance(true)}
-        onReplayTour={handleReplayTour}
         unreadCount={unreadCount}
         onOpenNotifications={() => setShowNotifications(true)}
-        onSearchClick={() => setActivePage('transactions')}
+        isMobileMenuOpen={isMobileSidebarOpen}
+        onToggleMobileMenu={() => setIsMobileSidebarOpen((prev) => !prev)}
       />
 
-      {/* Layout: Sidebar Icon Dock + Main Content Canvas */}
+      {/* Main Container: Sidebar + Content */}
       <div className="flex-1 flex w-full relative z-10">
-        {/* Left Sidebar Icon Dock */}
+        {/* Sidebar (Desktop icon dock + Mobile responsive slide-out drawer) */}
         <Sidebar
-          activePage={activePage}
-          setActivePage={(page) => {
-            setTxnPresetType(null);
-            setActivePage(page);
-          }}
           onOpenGuidance={() => setShowGuidance(true)}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
-        {/* Main Content Area */}
-        <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-8 py-6">
-          {activePage === 'dashboard' && (
-            <DashboardPage
-              key={`dash-${replayKey}`}
-              setActivePage={(p) => {
-                setTxnPresetType(null);
-                setActivePage(p);
-              }}
-              onTriggerAddTxn={(type) => {
-                setTxnPresetType(type);
-                setActivePage('transactions');
-              }}
-              onTriggerAddRecurring={() => setActivePage('recurring')}
-            />
-          )}
-
-          {activePage === 'transactions' && (
-            <TransactionsPage
-              key={`txn-${replayKey}`}
-              initialType={txnPresetType}
-            />
-          )}
-
-          {activePage === 'recurring' && (
-            <RecurringPage key={`rec-${replayKey}`} />
-          )}
-
-          {activePage === 'reports' && (
-            <ReportsPage key={`rep-${replayKey}`} />
-          )}
-
-          {activePage === 'profile' && (
-            <ProfilePage key={`prof-${replayKey}`} />
-          )}
+        {/* Dynamic Page Canvas with Error Boundary */}
+        <main className="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 overflow-x-hidden">
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -182,16 +145,120 @@ export function App() {
         unreadCount={unreadCount}
         onMarkRead={handleMarkRead}
         onMarkAllRead={handleMarkAllRead}
-        onNavigateToRecurring={() => setActivePage('recurring')}
+        onNavigateToRecurring={() => navigate('/recurring')}
       />
 
       {/* Module "How to Use" Guidance Modal */}
       <ModuleGuidanceModal
         isOpen={showGuidance}
         onClose={() => setShowGuidance(false)}
-        moduleKey={activePage}
+        moduleKey={activeModule || 'dashboard'}
       />
     </div>
+  );
+};
+
+// Protected Route Guard
+const ProtectedRoute = ({ children, moduleKey }) => {
+  const { isAuthenticated, isOnboarded, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <LoadingScreen />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  if (!isOnboarded) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return (
+    <AppLayout activeModule={moduleKey}>
+      {children}
+    </AppLayout>
+  );
+};
+
+export function App() {
+  const navigate = useNavigate();
+
+  return (
+    <Routes>
+      {/* 1. Public Authentication Route */}
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <AuthPage />
+          </PublicRoute>
+        }
+      />
+
+      {/* 2. Customer Onboarding Route */}
+      <Route
+        path="/onboarding"
+        element={
+          <OnboardingRoute>
+            <OnboardingPage onComplete={() => navigate('/dashboard')} />
+          </OnboardingRoute>
+        }
+      />
+
+      {/* 3. Root redirect */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      {/* 4. Protected Core Pages */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute moduleKey="dashboard">
+            <DashboardPage
+              setActivePage={(path) => navigate(`/${path}`)}
+              onTriggerAddTxn={(type) => navigate(`/transactions?type=${type}`)}
+              onTriggerAddRecurring={() => navigate('/recurring?action=add')}
+            />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/transactions"
+        element={
+          <ProtectedRoute moduleKey="transactions">
+            <TransactionsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/recurring"
+        element={
+          <ProtectedRoute moduleKey="recurring">
+            <RecurringPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute moduleKey="reports">
+            <ReportsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute moduleKey="profile">
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 5. 404 Catch-All Page */}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   );
 }
 

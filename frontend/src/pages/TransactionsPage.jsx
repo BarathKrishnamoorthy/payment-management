@@ -22,24 +22,27 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { ModuleTour } from '../components/walkthrough/ModuleTour';
 
 export const TransactionsPage = ({ initialType = null }) => {
   const { user, setModuleTutorialDone } = useAuth();
+  const [searchParams] = useSearchParams();
+  const queryType = searchParams.get('type') || initialType;
 
   const [transactions, setTransactions] = useState([]);
   const [summary, setSummary] = useState({ totalCredit: 0, totalDebit: 0, netBalance: 0 });
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [typeFilter, setTypeFilter] = useState(initialType || 'all');
+  const [typeFilter, setTypeFilter] = useState(queryType || 'all');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   // Modals state
-  const [showAddModal, setShowAddModal] = useState(!!initialType);
+  const [showAddModal, setShowAddModal] = useState(!!queryType);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedTxn, setSelectedTxn] = useState(null);
