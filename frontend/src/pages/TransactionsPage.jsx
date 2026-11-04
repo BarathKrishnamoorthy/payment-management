@@ -90,6 +90,8 @@ export const TransactionsPage = ({ initialType = null }) => {
     'Other',
   ];
 
+  const getCustomerKey = () => (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10) || user?._id || user?.id || 'customer';
+
   // Fetch transactions
   const fetchTransactions = async () => {
     try {
@@ -102,12 +104,55 @@ export const TransactionsPage = ({ initialType = null }) => {
       if (endDate) params.endDate = endDate;
 
       const res = await api.getTransactions(params);
-      if (res.success) {
-        setTransactions(res.transactions || []);
-        if (res.summary) setSummary(res.summary);
+      const key = getCustomerKey();
+
+      if (res.success && Array.isArray(res.transactions)) {
+        if (res.transactions.length > 0) {
+          setTransactions(res.transactions);
+          if (res.summary) setSummary(res.summary);
+          localStorage.setItem(`rb_txns_${key}`, JSON.stringify(res.transactions));
+          if (res.summary) localStorage.setItem(`rb_txns_sum_${key}`, JSON.stringify(res.summary));
+        } else {
+          // If server returned 0 records and no filters were applied, check if we have local cache
+          const isFilterActive = (typeFilter && typeFilter !== 'all') || (categoryFilter && categoryFilter !== 'All') || search || startDate || endDate;
+          const cached = localStorage.getItem(`rb_txns_${key}`);
+          if (!isFilterActive && cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setTransactions(parsed);
+                const cachedSum = localStorage.getItem(`rb_txns_sum_${key}`);
+                if (cachedSum) setSummary(JSON.parse(cachedSum));
+                // Auto-sync cached transactions back to server if server was cold-started
+                parsed.forEach((t) => {
+                  api.createTransaction({
+                    type: t.type,
+                    amount: t.amount,
+                    date: t.date,
+                    category: t.category,
+                    reason: t.reason,
+                    referenceNumber: t.referenceNumber,
+                  }).catch(() => {});
+                });
+                return;
+              }
+            } catch (e) {}
+          }
+          setTransactions([]);
+          if (res.summary) setSummary(res.summary);
+        }
       }
     } catch (err) {
       console.error('Fetch transactions error:', err);
+      const key = getCustomerKey();
+      const cached = localStorage.getItem(`rb_txns_${key}`);
+      if (cached) {
+        try {
+          setTransactions(JSON.parse(cached));
+          const cachedSum = localStorage.getItem(`rb_txns_sum_${key}`);
+          if (cachedSum) setSummary(JSON.parse(cachedSum));
+        } catch (e) {}
+      }
     } finally {
       setLoading(false);
     }

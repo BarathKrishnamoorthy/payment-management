@@ -68,14 +68,41 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
   // Local set of dismissed/hidden item IDs for this session
   const [dismissedItemIds, setDismissedItemIds] = useState([]);
 
+  const getCustomerKey = () => (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10) || user?._id || user?.id || 'customer';
+
   const fetchSummary = async () => {
     try {
       const res = await api.getDashboardSummary();
-      if (res.success) {
-        setData(res);
+      const key = getCustomerKey();
+
+      if (res && res.success) {
+        if ((res.totalIncome > 0 || res.totalExpenses > 0) || (res.recentTransactions && res.recentTransactions.length > 0)) {
+          setData(res);
+          localStorage.setItem(`rb_dash_${key}`, JSON.stringify(res));
+        } else {
+          // Check local cache if server instance cold-started
+          const cached = localStorage.getItem(`rb_dash_${key}`);
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (parsed && (parsed.totalIncome > 0 || parsed.totalExpenses > 0 || (parsed.recentTransactions && parsed.recentTransactions.length > 0))) {
+                setData(parsed);
+                return;
+              }
+            } catch (e) {}
+          }
+          setData(res);
+        }
       }
     } catch (err) {
       console.error('Error fetching dashboard summary:', err);
+      const key = getCustomerKey();
+      const cached = localStorage.getItem(`rb_dash_${key}`);
+      if (cached) {
+        try {
+          setData(JSON.parse(cached));
+        } catch (e) {}
+      }
     } finally {
       setLoading(false);
     }

@@ -67,6 +67,8 @@ export const RecurringPage = () => {
   const recurrenceTypes = ['Daily', 'Monthly', 'Quarterly', 'Yearly'];
 
   // Fetch recurring list
+  const getCustomerKey = () => (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10) || user?._id || user?.id || 'customer';
+
   const fetchRecurring = async () => {
     try {
       setLoading(true);
@@ -75,11 +77,49 @@ export const RecurringPage = () => {
       if (statusFilter !== 'All') params.status = statusFilter;
 
       const res = await api.getRecurringPayments(params);
-      if (res.success) {
-        setRecurringList(res.recurringPayments || []);
+      const key = getCustomerKey();
+
+      if (res && res.success && Array.isArray(res.recurringPayments)) {
+        if (res.recurringPayments.length > 0) {
+          setRecurringList(res.recurringPayments);
+          localStorage.setItem(`rb_rec_${key}`, JSON.stringify(res.recurringPayments));
+        } else {
+          const isFilterActive = categoryFilter !== 'All' || statusFilter !== 'All';
+          const cached = localStorage.getItem(`rb_rec_${key}`);
+          if (!isFilterActive && cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setRecurringList(parsed);
+                // Resync cached recurring records to server if server was cold-started
+                parsed.forEach((r) => {
+                  api.createRecurringPayment({
+                    title: r.title,
+                    amount: r.amount,
+                    paymentType: r.paymentType,
+                    recurrenceType: r.recurrenceType,
+                    dueDate: r.dueDate,
+                    reminderDays: r.reminderDays,
+                    reason: r.reason,
+                    autoCreateDebit: r.autoCreateDebit,
+                  }).catch(() => {});
+                });
+                return;
+              }
+            } catch (e) {}
+          }
+          setRecurringList([]);
+        }
       }
     } catch (err) {
       console.error('Fetch recurring error:', err);
+      const key = getCustomerKey();
+      const cached = localStorage.getItem(`rb_rec_${key}`);
+      if (cached) {
+        try {
+          setRecurringList(JSON.parse(cached));
+        } catch (e) {}
+      }
     } finally {
       setLoading(false);
     }
