@@ -227,6 +227,154 @@ export const ModuleGuidanceModal = ({ isOpen, onClose, moduleKey = 'dashboard' }
         { name: 'Recurring Financial Commitment', meaning: 'Normalized monthly financial liability represented by all active recurring loans and subscriptions.' },
       ],
     },
+    accounts: {
+      title: 'How to Use Bank Accounts & Wallets',
+      subtitle: 'Manage savings accounts, current accounts, UPI, and cash wallets with instant 1-click transfers.',
+      overview: [
+        {
+          icon: CreditCard,
+          title: 'Multi-Account Liquidity',
+          desc: 'Keep track of balances across your bank accounts, digital UPI wallets, and physical cash reserves.',
+        },
+        {
+          icon: ArrowRight,
+          title: 'Inter-Account Fund Transfers',
+          desc: 'Move funds between your accounts (e.g., Bank to UPI) without affecting your income or expense metrics.',
+        },
+      ],
+      crud: [
+        {
+          action: 'Adding an Account',
+          steps: [
+            'Click "+ Add Bank / Wallet".',
+            'Select account type: Savings, Current, Cash, UPI Wallet, or Credit Card.',
+            'Enter account name, bank name, last 4 digits, and opening balance.',
+          ],
+          badge: 'Create',
+          color: 'purple',
+        },
+        {
+          action: 'Transferring Funds',
+          steps: [
+            'Click "Transfer Between Accounts".',
+            'Select source and destination accounts, enter transfer amount, and confirm.',
+          ],
+          badge: 'Transfer',
+          color: 'emerald',
+        },
+      ],
+      fields: [
+        { name: 'Account Balance', meaning: 'Current real-time liquid balance calculated from opening balance + net transfers and transactions.' },
+        { name: 'Transfer Exclusion', meaning: 'Transfers between owned accounts do not count as income or expense.' },
+      ],
+    },
+    family: {
+      title: 'How to Use Family Finance Workspace',
+      subtitle: 'Collaborate with family members, manage shared household expenses, and split contributions.',
+      overview: [
+        {
+          icon: ShieldCheck,
+          title: 'Family Workspace Isolation',
+          desc: 'Separate your personal finances from shared family bills with role-based member permissions.',
+        },
+        {
+          icon: CheckCircle,
+          title: 'Mobile Number Invitations',
+          desc: 'Invite your spouse, parents, or dependents using their phone number with Owner, Admin, Member, or Viewer roles.',
+        },
+      ],
+      crud: [
+        {
+          action: 'Creating Family Workspace',
+          steps: [
+            'Click "Create Family Workspace".',
+            'Enter family name and choose default currency.',
+            'Add family members via their mobile phone number.',
+          ],
+          badge: 'Setup',
+          color: 'brand',
+        },
+      ],
+      fields: [
+        { name: 'Role: Admin', meaning: 'Can add and edit shared transactions and invite new family members.' },
+        { name: 'Role: Viewer', meaning: 'Can view shared household totals and reports in read-only mode.' },
+      ],
+    },
+    planning: {
+      title: 'How to Use Budgets & Savings Goals',
+      subtitle: 'Set category spending limits with threshold alerts and track milestone savings goals.',
+      overview: [
+        {
+          icon: TrendingUp,
+          title: 'Category Spending Limits',
+          desc: 'Define monthly budgets for Food, Shopping, Utilities, and get automatic alerts at 80% and 100% spend.',
+        },
+        {
+          icon: CheckCircle,
+          title: 'Target Savings Goals',
+          desc: 'Set goals for emergency funds, vacations, or down-payments and record milestone deposits.',
+        },
+      ],
+      crud: [
+        {
+          action: 'Setting Budgets',
+          steps: ['Click "+ Create Budget", select category, monthly limit amount, and save.'],
+          badge: 'Budget',
+          color: 'purple',
+        },
+        {
+          action: 'Adding Goal Deposit',
+          steps: ['Click "Deposit", enter contribution amount and optional note to increase goal progress.'],
+          badge: 'Goal',
+          color: 'emerald',
+        },
+      ],
+      fields: [
+        { name: '80% Warning Badge', meaning: 'Notifies you that 80% of your category monthly limit has been consumed.' },
+        { name: '100% Exceeded Badge', meaning: 'Alerts you that actual spending has surpassed the allocated budget.' },
+      ],
+    },
+    loans: {
+      title: 'How to Use Borrow & Lend Tracker',
+      subtitle: 'Record personal loans, friends & family debts, and partial repayments.',
+      overview: [
+        {
+          icon: TrendingUp,
+          title: 'Money Lent vs Money Borrowed',
+          desc: 'Easily track amounts you gave to others (To Collect) vs amounts you borrowed (To Repay).',
+        },
+        {
+          icon: CheckCircle,
+          title: 'Partial Repayments',
+          desc: 'Log installment repayments with automatic outstanding balance recalculation.',
+        },
+      ],
+      crud: [
+        {
+          action: 'Recording a Loan',
+          steps: [
+            'Click "+ Record New Loan / Debt".',
+            'Select "I Lent Money" or "I Borrowed Money".',
+            'Enter contact name, phone, principal, due date, and save.',
+          ],
+          badge: 'Record',
+          color: 'purple',
+        },
+        {
+          action: 'Recording Repayment',
+          steps: [
+            'Click "Record Repayment" on any active loan card.',
+            'Enter repayment amount and payment note (e.g. UPI transfer reference).',
+          ],
+          badge: 'Repay',
+          color: 'emerald',
+        },
+      ],
+      fields: [
+        { name: 'Outstanding Balance', meaning: 'Remaining unpaid principal amount.' },
+        { name: 'Net Position', meaning: 'Total money owed to you minus total money you owe.' },
+      ],
+    },
   };
 
   const currentGuide = guidanceData[moduleKey] || guidanceData.dashboard;

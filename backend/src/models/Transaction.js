@@ -8,10 +8,31 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    workspaceId: {
+      type: String,
+      default: 'personal',
+      index: true,
+    },
+    accountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Account',
+      default: null,
+      index: true,
+    },
+    toAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Account',
+      default: null,
+    },
     type: {
       type: String,
-      enum: ['credit', 'debit'],
+      enum: ['credit', 'debit', 'transfer'],
       required: true,
+    },
+    transferGroupId: {
+      type: String,
+      default: null,
+      index: true,
     },
     amount: {
       type: Number,
@@ -52,13 +73,27 @@ const transactionSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ['manual', 'bank_import', 'recurring_payment'],
+      enum: ['manual', 'bank_import', 'recurring_payment', 'transfer'],
       default: 'manual',
     },
     recurringPaymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'RecurringPayment',
       default: null,
+    },
+    // Family workspace shared expense support
+    familyMemberId: {
+      type: String,
+      default: null,
+    },
+    familyPayerId: {
+      type: String,
+      default: null,
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: '',
     },
   },
   {
@@ -68,6 +103,6 @@ const transactionSchema = new mongoose.Schema(
 
 transactionSchema.index({ user: 1, date: -1 });
 transactionSchema.index({ user: 1, type: 1 });
+transactionSchema.index({ workspaceId: 1, date: -1 });
 
 module.exports = mongoose.model('Transaction', transactionSchema);
-

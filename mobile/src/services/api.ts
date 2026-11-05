@@ -202,4 +202,186 @@ export const MobileAPI = {
     });
     return handleRes(res);
   },
+
+  // Bank Accounts & Wallets
+  getAccounts: async () => {
+    const res = await fetch(`${currentApiUrl}/accounts`, { headers: getHeaders() });
+    return handleRes(res);
+  },
+
+  createAccount: async (data: {
+    accountName: string;
+    accountType: string;
+    bankName?: string;
+    accountNumber?: string;
+    openingBalance?: number;
+    isDefault?: boolean;
+  }) => {
+    const res = await fetch(`${currentApiUrl}/accounts`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  transferBetweenAccounts: async (data: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    notes?: string;
+  }) => {
+    const res = await fetch(`${currentApiUrl}/accounts/transfer`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  archiveAccount: async (id: string) => {
+    const res = await fetch(`${currentApiUrl}/accounts/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleRes(res);
+  },
+
+  // Workspaces & Family
+  getWorkspaces: async () => {
+    const res = await fetch(`${currentApiUrl}/workspaces`, { headers: getHeaders() });
+    return handleRes(res);
+  },
+
+  createFamilyWorkspace: async (name: string, members: Array<{ mobileNumber: string; role?: string; name?: string }>) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/family`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ name, members }),
+    });
+    return handleRes(res);
+  },
+
+  inviteFamilyMember: async (workspaceId: string, mobileNumber: string, role?: string, name?: string) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ mobileNumber, role, name }),
+    });
+    return handleRes(res);
+  },
+
+  getFamilySummary: async (workspaceId: string) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/${workspaceId}/summary`, { headers: getHeaders() });
+    return handleRes(res);
+  },
+
+  // Planning: Budgets & Savings Goals
+  getBudgets: async (workspaceId?: string) => {
+    const url = workspaceId ? `${currentApiUrl}/planning/budgets?workspaceId=${workspaceId}` : `${currentApiUrl}/planning/budgets`;
+    const res = await fetch(url, { headers: getHeaders() });
+    return handleRes(res);
+  },
+
+  createBudget: async (data: { category: string; monthlyLimit: number; period?: string; workspaceId?: string }) => {
+    const res = await fetch(`${currentApiUrl}/planning/budgets`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  deleteBudget: async (id: string) => {
+    const res = await fetch(`${currentApiUrl}/planning/budgets/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleRes(res);
+  },
+
+  getSavingsGoals: async (workspaceId?: string) => {
+    const url = workspaceId ? `${currentApiUrl}/planning/goals?workspaceId=${workspaceId}` : `${currentApiUrl}/planning/goals`;
+    const res = await fetch(url, { headers: getHeaders() });
+    return handleRes(res);
+  },
+
+  createSavingsGoal: async (data: {
+    name: string;
+    targetAmount: number;
+    initialDeposit?: number;
+    category?: string;
+    targetDate?: string;
+    notes?: string;
+    workspaceId?: string;
+  }) => {
+    const res = await fetch(`${currentApiUrl}/planning/goals`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  addGoalContribution: async (goalId: string, amount: number, notes?: string) => {
+    const res = await fetch(`${currentApiUrl}/planning/goals/${goalId}/deposit`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ amount, notes }),
+    });
+    return handleRes(res);
+  },
+
+  deleteSavingsGoal: async (id: string) => {
+    const res = await fetch(`${currentApiUrl}/planning/goals/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleRes(res);
+  },
+
+  // Borrowing & Lending (Loans)
+  getLoans: async (type?: 'borrowed' | 'lent', workspaceId?: string) => {
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (workspaceId) params.append('workspaceId', workspaceId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`${currentApiUrl}/loans${query}`, { headers: getHeaders() });
+    return handleRes(res);
+  },
+
+  createLoan: async (data: {
+    personName: string;
+    mobileNumber?: string;
+    type: 'borrowed' | 'lent';
+    principal: number;
+    interestRate?: number;
+    dueDate?: string;
+    notes?: string;
+    workspaceId?: string;
+  }) => {
+    const res = await fetch(`${currentApiUrl}/loans`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  addLoanRepayment: async (loanId: string, data: { amount: number; notes?: string }) => {
+    const res = await fetch(`${currentApiUrl}/loans/${loanId}/repay`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  deleteLoan: async (loanId: string) => {
+    const res = await fetch(`${currentApiUrl}/loans/${loanId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleRes(res);
+  },
 };

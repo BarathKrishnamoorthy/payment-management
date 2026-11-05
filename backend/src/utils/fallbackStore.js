@@ -8,6 +8,11 @@ const memoryOtps = new Map();
 let memoryTransactions = [];
 let memoryRecurring = [];
 let memoryNotifications = [];
+let memoryAccounts = [];
+let memoryWorkspaces = [];
+let memoryBudgets = [];
+let memorySavingsGoals = [];
+let memoryLoans = [];
 
 // Persistence file path
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '../../data');
@@ -23,6 +28,11 @@ const saveToDisk = () => {
       transactions: memoryTransactions,
       recurring: memoryRecurring,
       notifications: memoryNotifications,
+      accounts: memoryAccounts,
+      workspaces: memoryWorkspaces,
+      budgets: memoryBudgets,
+      savingsGoals: memorySavingsGoals,
+      loans: memoryLoans,
     };
     fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf8');
   } catch (e) {
@@ -46,6 +56,21 @@ const loadFromDisk = () => {
       }
       if (parsed.notifications && Array.isArray(parsed.notifications)) {
         memoryNotifications = parsed.notifications;
+      }
+      if (parsed.accounts && Array.isArray(parsed.accounts)) {
+        memoryAccounts = parsed.accounts;
+      }
+      if (parsed.workspaces && Array.isArray(parsed.workspaces)) {
+        memoryWorkspaces = parsed.workspaces;
+      }
+      if (parsed.budgets && Array.isArray(parsed.budgets)) {
+        memoryBudgets = parsed.budgets;
+      }
+      if (parsed.savingsGoals && Array.isArray(parsed.savingsGoals)) {
+        memorySavingsGoals = parsed.savingsGoals;
+      }
+      if (parsed.loans && Array.isArray(parsed.loans)) {
+        memoryLoans = parsed.loans;
       }
     }
   } catch (e) {
@@ -527,5 +552,456 @@ module.exports = {
       if (String(n.user) === targetUserId) n.isRead = true;
     });
     return true;
+  },
+
+  // ==========================================
+  // ACCOUNTS & WALLETS (FALLBACK STORE)
+  // ==========================================
+  getAccounts: (userId, workspaceId = 'personal') => {
+    const targetUserId = String(userId);
+    let list = memoryAccounts.filter((a) => String(a.user) === targetUserId && a.status !== 'archived');
+    if (list.length === 0) {
+      const defaultCash = {
+        _id: 'acc-cash-' + targetUserId,
+        user: targetUserId,
+        workspaceId,
+        accountName: 'Cash Wallet',
+        accountType: 'cash',
+        openingBalance: 0,
+        currentBalance: 0,
+        currency: 'INR',
+        isDefault: true,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+      memoryAccounts.push(defaultCash);
+      saveToDisk();
+      return [defaultCash];
+    }
+    return list;
+  },
+
+  createAccount: (data) => {
+    const newAcc = {
+      _id: 'acc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      user: String(data.user),
+      workspaceId: data.workspaceId || 'personal',
+      accountName: data.accountName,
+      accountType: data.accountType || 'savings',
+      bankName: data.bankName || '',
+      accountNumber: data.accountNumber || '',
+      accountNumberLast4: data.accountNumberLast4 || '',
+      openingBalance: Number(data.openingBalance) || 0,
+      currentBalance: Number(data.openingBalance) || 0,
+      currency: data.currency || 'INR',
+      isDefault: Boolean(data.isDefault),
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+    if (newAcc.isDefault) {
+      memoryAccounts.forEach((a) => {
+        if (String(a.user) === String(data.user)) a.isDefault = false;
+      });
+    }
+    memoryAccounts.push(newAcc);
+    saveToDisk();
+    return newAcc;
+  },
+
+  updateAccount: (id, userId, updates) => {
+    const acc = memoryAccounts.find((a) => a._id === id && String(a.user) === String(userId));
+    if (acc) {
+      if (updates.isDefault) {
+        memoryAccounts.forEach((a) => {
+          if (String(a.user) === String(userId)) a.isDefault = false;
+        });
+      }
+      Object.assign(acc, updates);
+      saveToDisk();
+      return acc;
+    }
+    return null;
+  },
+
+  archiveAccount: (id, userId) => {
+    const acc = memoryAccounts.find((a) => a._id === id && String(a.user) === String(userId));
+    if (acc) {
+      acc.status = 'archived';
+      saveToDisk();
+      return true;
+    }
+    return false;
+  },
+
+  transferBetweenAccounts: (userId, data) => {
+    const targetUserId = String(userId);
+    const fromAcc = memoryAccounts.find((a) => a._id === data.fromAccountId && String(a.user) === targetUserId);
+    const toAcc = memoryAccounts.find((a) => a._id === data.toAccountId && String(a.user) === targetUserId);
+
+    if (fromAcc) fromAcc.currentBalance -= data.amount;
+    if (toAcc) toAcc.currentBalance += data.amount;
+
+    // Record source leg
+    const tx1 = {
+      _id: 'tx-' + Date.now() + '-1',
+      user: targetUserId,
+      accountId: data.fromAccountId,
+      toAccountId: data.toAccountId,
+      type: 'transfer',
+      transferGroupId: data.transferGroupId,
+      amount: data.amount,
+      date: data.date,
+      category: 'Transfer',
+      reason: data.notes || `Transfer to ${toAcc ? toAcc.accountName : 'Account'}`,
+      source: 'transfer',
+      createdAt: new Date().toISOString(),
+    };
+    // Record dest leg
+    const tx2 = {
+      _id: 'tx-' + Date.now() + '-2',
+      user: targetUserId,
+      accountId: data.toAccountId,
+      toAccountId: data.fromAccountId,
+      type: 'transfer',
+      transferGroupId: data.transferGroupId,
+      amount: data.amount,
+      date: data.date,
+      category: 'Transfer',
+      reason: data.notes || `Transfer from ${fromAcc ? fromAcc.accountName : 'Account'}`,
+      source: 'transfer',
+      createdAt: new Date().toISOString(),
+    };
+    memoryTransactions.unshift(tx1);
+    memoryTransactions.unshift(tx2);
+    saveToDisk();
+
+    return { fromAccount: fromAcc, toAccount: toAcc, transferGroupId: data.transferGroupId };
+  },
+
+  // ==========================================
+  // WORKSPACES & FAMILY (FALLBACK STORE)
+  // ==========================================
+  getWorkspaces: (userId, phone) => {
+    const targetUserId = String(userId);
+    const cleanPhone = (phone || '').replace(/[^0-9]/g, '').slice(-10);
+
+    let list = memoryWorkspaces.filter(
+      (w) =>
+        w.status === 'active' &&
+        (String(w.owner) === targetUserId ||
+          w.members.some((m) => String(m.user) === targetUserId || m.phoneNumber === cleanPhone))
+    );
+
+    // Ensure personal workspace exists
+    let personal = list.find((w) => w.type === 'personal');
+    if (!personal) {
+      personal = {
+        _id: 'ws-personal-' + targetUserId,
+        name: 'Personal Workspace',
+        type: 'personal',
+        owner: targetUserId,
+        currency: 'INR',
+        status: 'active',
+        members: [{ user: targetUserId, phoneNumber: cleanPhone, name: 'Owner', role: 'owner', status: 'active' }],
+        createdAt: new Date().toISOString(),
+      };
+      memoryWorkspaces.unshift(personal);
+      list.unshift(personal);
+      saveToDisk();
+    }
+    return list;
+  },
+
+  createFamilyWorkspace: (userId, data) => {
+    const ws = {
+      _id: 'ws-fam-' + Date.now(),
+      name: data.name,
+      type: 'family',
+      owner: String(userId),
+      currency: 'INR',
+      status: 'active',
+      members: [
+        {
+          _id: 'mem-' + Date.now(),
+          user: String(userId),
+          phoneNumber: data.ownerPhone,
+          name: data.ownerName,
+          role: 'owner',
+          status: 'active',
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+    memoryWorkspaces.push(ws);
+    saveToDisk();
+    return ws;
+  },
+
+  inviteMember: (workspaceId, userId, memberData) => {
+    const ws = memoryWorkspaces.find((w) => w._id === workspaceId);
+    if (ws) {
+      const newMem = {
+        _id: 'mem-' + Date.now(),
+        phoneNumber: memberData.phoneNumber,
+        name: memberData.name,
+        role: memberData.role || 'member',
+        status: 'active',
+        joinedAt: new Date().toISOString(),
+      };
+      ws.members.push(newMem);
+      saveToDisk();
+      return ws;
+    }
+    return null;
+  },
+
+  removeMember: (workspaceId, memberId, userId) => {
+    const ws = memoryWorkspaces.find((w) => w._id === workspaceId && String(w.owner) === String(userId));
+    if (ws) {
+      ws.members = ws.members.filter((m) => m._id !== memberId);
+      saveToDisk();
+      return ws;
+    }
+    return null;
+  },
+
+  getFamilySummary: (workspaceId) => {
+    const ws = memoryWorkspaces.find((w) => w._id === workspaceId);
+    const sharedTxs = memoryTransactions.filter((t) => t.workspaceId === workspaceId);
+
+    let totalSharedExpense = 0;
+    let totalContributions = 0;
+    const memberTotals = {};
+
+    if (ws && ws.members) {
+      ws.members.forEach((m) => {
+        memberTotals[m.phoneNumber] = {
+          name: m.name || m.phoneNumber,
+          phoneNumber: m.phoneNumber,
+          role: m.role,
+          paid: 0,
+        };
+      });
+    }
+
+    sharedTxs.forEach((tx) => {
+      if (tx.type === 'debit') {
+        totalSharedExpense += tx.amount;
+        if (tx.familyPayerId && memberTotals[tx.familyPayerId]) {
+          memberTotals[tx.familyPayerId].paid += tx.amount;
+        }
+      } else if (tx.type === 'credit') {
+        totalContributions += tx.amount;
+      }
+    });
+
+    return {
+      workspace: ws,
+      totalSharedExpense,
+      totalContributions,
+      memberBreakdown: Object.values(memberTotals),
+      recentTransactions: sharedTxs.slice(0, 10),
+    };
+  },
+
+  // ==========================================
+  // BUDGETS (FALLBACK STORE)
+  // ==========================================
+  getBudgets: (userId, workspaceId = 'personal') => {
+    const targetUserId = String(userId);
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    const y = now.getFullYear();
+
+    const userBudgets = memoryBudgets.filter(
+      (b) => String(b.user) === targetUserId && b.workspaceId === workspaceId && b.status === 'active'
+    );
+
+    const userDebits = memoryTransactions.filter(
+      (t) => String(t.user) === targetUserId && t.type === 'debit'
+    );
+
+    return userBudgets.map((b) => {
+      const spent = userDebits
+        .filter((t) => t.category === b.category)
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      const remaining = Math.max(0, b.amount - spent);
+      const percentage = b.amount > 0 ? Math.min(100, Math.round((spent / b.amount) * 100)) : 0;
+      return {
+        ...b,
+        spent,
+        remaining,
+        percentage,
+        isNearLimit: percentage >= 80 && percentage < 100,
+        isOverBudget: spent > b.amount,
+      };
+    });
+  },
+
+  createBudget: (data) => {
+    const existing = memoryBudgets.find(
+      (b) =>
+        String(b.user) === String(data.user) &&
+        b.workspaceId === data.workspaceId &&
+        b.category === data.category
+    );
+    if (existing) {
+      existing.amount = data.amount;
+      existing.status = 'active';
+      saveToDisk();
+      return existing;
+    }
+    const newB = {
+      _id: 'bgt-' + Date.now(),
+      ...data,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+    memoryBudgets.push(newB);
+    saveToDisk();
+    return newB;
+  },
+
+  deleteBudget: (id, userId) => {
+    const b = memoryBudgets.find((x) => x._id === id && String(x.user) === String(userId));
+    if (b) {
+      b.status = 'archived';
+      saveToDisk();
+      return true;
+    }
+    return false;
+  },
+
+  // ==========================================
+  // SAVINGS GOALS (FALLBACK STORE)
+  // ==========================================
+  getSavingsGoals: (userId, workspaceId = 'personal') => {
+    const targetUserId = String(userId);
+    return memorySavingsGoals
+      .filter((g) => String(g.user) === targetUserId && g.status !== 'archived')
+      .map((g) => ({
+        ...g,
+        percentage: g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0,
+        remainingAmount: Math.max(0, g.targetAmount - g.currentAmount),
+      }));
+  },
+
+  createSavingsGoal: (data) => {
+    const newGoal = {
+      _id: 'goal-' + Date.now(),
+      ...data,
+      status: 'in_progress',
+      createdAt: new Date().toISOString(),
+    };
+    memorySavingsGoals.push(newGoal);
+    saveToDisk();
+    return newGoal;
+  },
+
+  addGoalContribution: (id, userId, contribution) => {
+    const goal = memorySavingsGoals.find((g) => g._id === id && String(g.user) === String(userId));
+    if (goal) {
+      goal.currentAmount += Number(contribution.amount);
+      if (!goal.contributions) goal.contributions = [];
+      goal.contributions.push({
+        _id: 'dep-' + Date.now(),
+        amount: Number(contribution.amount),
+        date: new Date().toISOString(),
+        notes: contribution.notes || 'Deposit',
+      });
+      if (goal.currentAmount >= goal.targetAmount) {
+        goal.status = 'completed';
+      }
+      saveToDisk();
+      return goal;
+    }
+    return null;
+  },
+
+  deleteSavingsGoal: (id, userId) => {
+    const goal = memorySavingsGoals.find((g) => g._id === id && String(g.user) === String(userId));
+    if (goal) {
+      goal.status = 'archived';
+      saveToDisk();
+      return true;
+    }
+    return false;
+  },
+
+  // ==========================================
+  // LOANS (BORROWING & LENDING FALLBACK STORE)
+  // ==========================================
+  getLoans: (userId, workspaceId = 'personal', type) => {
+    const targetUserId = String(userId);
+    let list = memoryLoans.filter((l) => String(l.user) === targetUserId);
+    if (type) list = list.filter((l) => l.type === type);
+
+    let totalBorrowed = 0;
+    let totalLent = 0;
+    let outstandingBorrowed = 0;
+    let outstandingLent = 0;
+
+    list.forEach((l) => {
+      if (l.type === 'borrowed') {
+        totalBorrowed += l.principal;
+        outstandingBorrowed += l.outstanding;
+      } else if (l.type === 'lent') {
+        totalLent += l.principal;
+        outstandingLent += l.outstanding;
+      }
+    });
+
+    return {
+      loans: list,
+      summary: {
+        totalBorrowed,
+        totalLent,
+        outstandingBorrowed,
+        outstandingLent,
+        netPosition: outstandingLent - outstandingBorrowed,
+      },
+    };
+  },
+
+  createLoan: (data) => {
+    const newLoan = {
+      _id: 'loan-' + Date.now(),
+      ...data,
+      status: 'active',
+      repayments: [],
+      createdAt: new Date().toISOString(),
+    };
+    memoryLoans.push(newLoan);
+    saveToDisk();
+    return newLoan;
+  },
+
+  addLoanRepayment: (id, userId, repayment) => {
+    const loan = memoryLoans.find((l) => l._id === id && String(l.user) === String(userId));
+    if (loan) {
+      loan.outstanding = Math.max(0, loan.outstanding - Number(repayment.amount));
+      if (!loan.repayments) loan.repayments = [];
+      loan.repayments.push({
+        _id: 'rep-' + Date.now(),
+        amount: Number(repayment.amount),
+        date: repayment.date || new Date().toISOString(),
+        notes: repayment.notes || '',
+        referenceNumber: repayment.referenceNumber || '',
+      });
+      if (loan.outstanding === 0) {
+        loan.status = 'repaid';
+      }
+      saveToDisk();
+      return loan;
+    }
+    return null;
+  },
+
+  deleteLoan: (id, userId) => {
+    const initial = memoryLoans.length;
+    memoryLoans = memoryLoans.filter((l) => !(l._id === id && String(l.user) === String(userId)));
+    const deleted = memoryLoans.length < initial;
+    if (deleted) saveToDisk();
+    return deleted;
   },
 };

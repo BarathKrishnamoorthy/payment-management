@@ -13,6 +13,10 @@ import { TransactionsPage } from './pages/TransactionsPage';
 import { RecurringPage } from './pages/RecurringPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { AccountsPage } from './pages/AccountsPage';
+import { FamilyPage } from './pages/FamilyPage';
+import { PlanningPage } from './pages/PlanningPage';
+import { LoansPage } from './pages/LoansPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { api } from './services/api';
 
@@ -243,6 +247,42 @@ export function App() {
         element={
           <ProtectedRoute moduleKey="transactions">
             <TransactionsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/accounts"
+        element={
+          <ProtectedRoute moduleKey="accounts">
+            <AccountsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/family"
+        element={
+          <ProtectedRoute moduleKey="family">
+            <FamilyPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/planning"
+        element={
+          <ProtectedRoute moduleKey="planning">
+            <PlanningPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/loans"
+        element={
+          <ProtectedRoute moduleKey="loans">
+            <LoansPage />
           </ProtectedRoute>
         }
       />

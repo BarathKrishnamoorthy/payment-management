@@ -262,5 +262,215 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  // Accounts & Wallets
+  getAccounts: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/accounts?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  createAccount: async (data) => {
+    const res = await fetch(`${BASE_URL}/accounts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  updateAccount: async (id, data) => {
+    const res = await fetch(`${BASE_URL}/accounts/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  transferBetweenAccounts: async (data) => {
+    const res = await fetch(`${BASE_URL}/accounts/transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  archiveAccount: async (id) => {
+    const res = await fetch(`${BASE_URL}/accounts/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  // Workspaces & Family Management
+  getWorkspaces: async () => {
+    const res = await fetch(`${BASE_URL}/workspaces`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  createFamilyWorkspace: async (data) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  getFamilySummary: async (workspaceId) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/summary`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  inviteFamilyMember: async (workspaceId, data) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/members`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  removeFamilyMember: async (workspaceId, memberId) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/members/${memberId}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  // Planning: Budgets & Savings Goals
+  getBudgets: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/planning/budgets?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  createBudget: async (data) => {
+    const res = await fetch(`${BASE_URL}/planning/budgets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  deleteBudget: async (id) => {
+    const res = await fetch(`${BASE_URL}/planning/budgets/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  getSavingsGoals: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/planning/savings-goals?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  createSavingsGoal: async (data) => {
+    const res = await fetch(`${BASE_URL}/planning/savings-goals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  addGoalContribution: async (id, data) => {
+    const res = await fetch(`${BASE_URL}/planning/savings-goals/${id}/contributions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  deleteSavingsGoal: async (id) => {
+    const res = await fetch(`${BASE_URL}/planning/savings-goals/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  // Loans: Borrowing & Lending
+  getLoans: async (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL}/loans?${query}`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  createLoan: async (data) => {
+    const res = await fetch(`${BASE_URL}/loans`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  addLoanRepayment: async (id, data) => {
+    const res = await fetch(`${BASE_URL}/loans/${id}/repayments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  deleteLoan: async (id) => {
+    const res = await fetch(`${BASE_URL}/loans/${id}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
 };
 

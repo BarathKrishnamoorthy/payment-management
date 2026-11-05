@@ -11,7 +11,11 @@ import {
   X,
   Wallet,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Landmark,
+  Users,
+  Target,
+  Handshake
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -27,6 +31,10 @@ export const Sidebar = ({
   const items = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/transactions', icon: ArrowLeftRight, label: 'Income & Expenses' },
+    { path: '/accounts', icon: Landmark, label: 'Accounts & Wallets' },
+    { path: '/family', icon: Users, label: 'Family Finance' },
+    { path: '/planning', icon: Target, label: 'Budgets & Goals' },
+    { path: '/loans', icon: Handshake, label: 'Borrow & Lend' },
     { path: '/recurring', icon: RotateCcw, label: 'Recurring Payments' },
     { path: '/reports', icon: BarChart2, label: 'Reports' },
     { path: '/profile', icon: User, label: 'Profile' },
