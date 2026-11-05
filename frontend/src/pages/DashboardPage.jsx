@@ -68,6 +68,43 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
   // Local set of dismissed/hidden item IDs for this session
   const [dismissedItemIds, setDismissedItemIds] = useState([]);
 
+  // Safe helper to calculate difference in days supporting YYYY-MM-DD and DD-MM-YYYY
+  const calculateDiffDays = (dueDateStr) => {
+    if (!dueDateStr) return 999;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let target;
+    if (typeof dueDateStr === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dueDateStr)) {
+      const [d, m, y] = dueDateStr.split('-');
+      target = new Date(Number(y), Number(m) - 1, Number(d));
+    } else if (typeof dueDateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dueDateStr)) {
+      const [d, m, y] = dueDateStr.split('/');
+      target = new Date(Number(y), Number(m) - 1, Number(d));
+    } else {
+      target = new Date(dueDateStr);
+    }
+
+    const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    return Math.round((targetDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const formatDueDateDisplay = (dateVal) => {
+    if (!dateVal) return '';
+    let d;
+    if (typeof dateVal === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dateVal)) {
+      const [day, m, y] = dateVal.split('-');
+      d = new Date(Number(y), Number(m) - 1, Number(day));
+    } else if (typeof dateVal === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateVal)) {
+      const [day, m, y] = dateVal.split('/');
+      d = new Date(Number(y), Number(m) - 1, Number(day));
+    } else {
+      d = new Date(dateVal);
+    }
+    if (isNaN(d.getTime())) return String(dateVal);
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const getCustomerKey = () => (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10) || user?._id || user?.id || 'customer';
 
   const fetchSummary = async () => {
@@ -75,24 +112,74 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
       const res = await api.getDashboardSummary();
       const key = getCustomerKey();
 
+      // Read local recurring payments cache from RecurringPage
+      let localRec = [];
+      const cachedRec = localStorage.getItem(`rb_rec_${key}`);
+      if (cachedRec) {
+        try {
+          const parsed = JSON.parse(cachedRec);
+          if (Array.isArray(parsed)) localRec = parsed;
+        } catch (e) {}
+      }
+
       if (res && res.success) {
-        if ((res.totalIncome > 0 || res.totalExpenses > 0) || (res.recentTransactions && res.recentTransactions.length > 0)) {
-          setData(res);
-          localStorage.setItem(`rb_dash_${key}`, JSON.stringify(res));
-        } else {
-          // Check local cache if server instance cold-started
-          const cached = localStorage.getItem(`rb_dash_${key}`);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              if (parsed && (parsed.totalIncome > 0 || parsed.totalExpenses > 0 || (parsed.recentTransactions && parsed.recentTransactions.length > 0))) {
-                setData(parsed);
-                return;
-              }
-            } catch (e) {}
+        // Enriched recurring payments by merging server response with local recurring storage
+        const serverUpcoming = res.allUpcomingPayments || res.upcomingPayments || [];
+
+        const combinedMap = new Map();
+        serverUpcoming.forEach((item) => {
+          const diffDays = calculateDiffDays(item.nextDueDate || item.dueDate);
+          const id = item._id || item.id || item.title;
+          combinedMap.set(id, {
+            ...item,
+            diffDays,
+            isOverdue: diffDays < 0,
+            isDueToday: diffDays === 0,
+            isDueSoon: diffDays > 0 && diffDays <= 3,
+          });
+        });
+
+        localRec.forEach((item) => {
+          const id = item._id || item.id || item.title;
+          if (!combinedMap.has(id)) {
+            const diffDays = calculateDiffDays(item.nextDueDate || item.dueDate);
+            combinedMap.set(id, {
+              ...item,
+              diffDays,
+              isOverdue: diffDays < 0,
+              isDueToday: diffDays === 0,
+              isDueSoon: diffDays > 0 && diffDays <= 3,
+            });
+
+            // Resync to server in background if missing
+            api.createRecurringPayment({
+              title: item.title,
+              paymentType: item.paymentType,
+              recurrenceType: item.recurrenceType,
+              dueDate: item.dueDate || item.nextDueDate,
+              amount: item.amount,
+              reason: item.reason,
+              autoCreateDebit: item.autoCreateDebit,
+            }).catch(() => {});
           }
-          setData(res);
-        }
+        });
+
+        const mergedAllPayments = Array.from(combinedMap.values());
+        const mergedUpcoming = mergedAllPayments.filter((p) => p.diffDays <= 3);
+        const mergedDueToday = mergedAllPayments.filter((p) => p.isDueToday);
+
+        const enrichedData = {
+          ...res,
+          allUpcomingPayments: mergedAllPayments,
+          upcomingPayments: mergedUpcoming,
+          dueToday: mergedDueToday,
+          activeSchedulesCount: mergedAllPayments.filter((r) => r.status === 'Active' || !r.status).length,
+          dueWithin3DaysCount: mergedUpcoming.length,
+          hiddenSchedulesCount: mergedAllPayments.filter((p) => p.diffDays > 3).length,
+        };
+
+        setData(enrichedData);
+        localStorage.setItem(`rb_dash_${key}`, JSON.stringify(enrichedData));
       }
     } catch (err) {
       console.error('Error fetching dashboard summary:', err);
@@ -797,12 +884,9 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
 
                   {/* Due Date & Action */}
                   <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      {new Date(item.nextDueDate).toLocaleDateString([], {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
+                      <Calendar className="w-3.5 h-3.5 text-purple-500" />
+                      {formatDueDateDisplay(item.nextDueDate || item.dueDate)}
                     </span>
 
                     <div className="flex items-center gap-1.5">

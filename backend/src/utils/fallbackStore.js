@@ -81,14 +81,29 @@ const loadFromDisk = () => {
 // Initial load on start
 loadFromDisk();
 
+// Helper to parse dates safely supporting both YYYY-MM-DD and DD-MM-YYYY formats
+const parseDateSafe = (targetDate) => {
+  if (!targetDate) return new Date();
+  if (typeof targetDate === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(targetDate)) {
+    const [d, m, y] = targetDate.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  if (typeof targetDate === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(targetDate)) {
+    const [d, m, y] = targetDate.split('/');
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  const parsed = new Date(targetDate);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
 // Helper to calculate days difference to target due date
 const getDaysDifference = (targetDate) => {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const target = new Date(targetDate);
-  target.setHours(0, 0, 0, 0);
-  const diffTime = target.getTime() - now.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = parseDateSafe(targetDate);
+  const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const diffTime = targetDay.getTime() - today.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
 };
 
 module.exports = {
@@ -379,13 +394,17 @@ module.exports = {
   },
 
   createRecurring: (data) => {
+    const rawDue = data.dueDate || data.nextDueDate;
+    const parsedDate = parseDateSafe(rawDue);
+    const isoDue = parsedDate.toISOString();
+
     const newRec = {
       _id: 'rec-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
       user: String(data.user),
       title: data.title.trim(),
       paymentType: data.paymentType,
-      dueDate: data.dueDate,
-      nextDueDate: data.nextDueDate || data.dueDate,
+      dueDate: isoDue,
+      nextDueDate: isoDue,
       recurrenceType: data.recurrenceType || 'Monthly',
       amount: Number(data.amount),
       reason: data.reason || '',

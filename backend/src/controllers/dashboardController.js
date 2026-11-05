@@ -134,7 +134,17 @@ const getDashboardSummary = async (req, res) => {
     }).sort({ nextDueDate: 1 });
 
     const allMappedPayments = recurringDues.map((item) => {
-      const itemDue = new Date(item.nextDueDate);
+      const rawDate = item.nextDueDate || item.dueDate;
+      let itemDue;
+      if (typeof rawDate === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
+        const [d, m, y] = rawDate.split('-');
+        itemDue = new Date(Number(y), Number(m) - 1, Number(d));
+      } else if (typeof rawDate === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+        const [d, m, y] = rawDate.split('/');
+        itemDue = new Date(Number(y), Number(m) - 1, Number(d));
+      } else {
+        itemDue = new Date(rawDate);
+      }
       const itemDay = new Date(itemDue.getFullYear(), itemDue.getMonth(), itemDue.getDate());
       const diffDays = Math.round((itemDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -144,7 +154,7 @@ const getDashboardSummary = async (req, res) => {
         paymentType: item.paymentType,
         recurrenceType: item.recurrenceType,
         amount: item.amount,
-        nextDueDate: item.nextDueDate,
+        nextDueDate: item.nextDueDate || item.dueDate,
         dueDate: item.dueDate,
         reason: item.reason,
         autoCreateDebit: item.autoCreateDebit,

@@ -62,7 +62,16 @@ const createRecurringPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Due date is required.' });
     }
 
-    const initialDue = new Date(dueDate);
+    let initialDue;
+    if (typeof dueDate === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dueDate)) {
+      const [d, m, y] = dueDate.split('-');
+      initialDue = new Date(Number(y), Number(m) - 1, Number(d));
+    } else if (typeof dueDate === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dueDate)) {
+      const [d, m, y] = dueDate.split('/');
+      initialDue = new Date(Number(y), Number(m) - 1, Number(d));
+    } else {
+      initialDue = new Date(dueDate);
+    }
 
     if (isDbReady()) {
       const recurring = await RecurringPayment.create({
@@ -74,6 +83,20 @@ const createRecurringPayment = async (req, res) => {
         recurrenceType,
         amount: Number(amount),
         reason: reason ? reason.trim() : '',
+        autoCreateDebit: autoCreateDebit !== undefined ? Boolean(autoCreateDebit) : true,
+        status: 'Active',
+      });
+
+      // Keep fallbackStore in sync
+      fallbackStore.createRecurring({
+        user: req.user._id,
+        title: title.trim(),
+        paymentType,
+        dueDate: initialDue.toISOString(),
+        nextDueDate: initialDue.toISOString(),
+        recurrenceType,
+        amount: Number(amount),
+        reason: reason || '',
         autoCreateDebit: autoCreateDebit !== undefined ? Boolean(autoCreateDebit) : true,
         status: 'Active',
       });

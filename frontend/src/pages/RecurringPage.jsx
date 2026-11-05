@@ -263,6 +263,7 @@ export const RecurringPage = () => {
         }
         try {
           localStorage.setItem(`rb_rec_${key}`, JSON.stringify(updatedList));
+          localStorage.removeItem(`rb_dash_${key}`);
         } catch (e) {}
         return updatedList;
       });
@@ -289,6 +290,7 @@ export const RecurringPage = () => {
         const next = prev.filter((r) => r._id !== id && r.id !== id);
         try {
           localStorage.setItem(`rb_rec_${key}`, JSON.stringify(next));
+          localStorage.removeItem(`rb_dash_${key}`);
         } catch (e) {}
         return next;
       });
