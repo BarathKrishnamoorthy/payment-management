@@ -71,3 +71,4 @@ const workspaceSchema = new mongoose.Schema(
 workspaceSchema.index({ owner: 1, type: 1 });
 
 module.exports = mongoose.model('Workspace', workspaceSchema);
+

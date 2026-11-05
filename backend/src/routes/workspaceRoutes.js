@@ -18,3 +18,4 @@ router.post('/family/:workspaceId/members', inviteMember);
 router.delete('/family/:workspaceId/members/:memberId', removeMember);
 
 module.exports = router;
+

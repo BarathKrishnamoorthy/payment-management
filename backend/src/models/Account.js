@@ -68,3 +68,4 @@ const accountSchema = new mongoose.Schema(
 accountSchema.index({ user: 1, status: 1 });
 
 module.exports = mongoose.model('Account', accountSchema);
+

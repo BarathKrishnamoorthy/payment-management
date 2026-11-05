@@ -22,6 +22,28 @@
     ]
   ],
   "transactions": [],
-  "recurring": [],
-  "notifications": []
+  "recurring": [
+    {
+      "_id": "rec-1793894104056-hz9ns",
+      "user": "test-user",
+      "title": "Updated Car Loan",
+      "paymentType": "EMI",
+      "dueDate": "2026-12-01",
+      "nextDueDate": "2026-12-01",
+      "recurrenceType": "Monthly",
+      "amount": 16000,
+      "reason": "",
+      "autoCreateDebit": false,
+      "status": "Active",
+      "reminderDays": 3,
+      "paymentHistory": [],
+      "createdAt": "2026-11-05T15:55:04.056Z"
+    }
+  ],
+  "notifications": [],
+  "accounts": [],
+  "workspaces": [],
+  "budgets": [],
+  "savingsGoals": [],
+  "loans": []
 }

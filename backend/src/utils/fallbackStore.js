@@ -437,6 +437,26 @@ module.exports = {
     return null;
   },
 
+  updateRecurring: (id, userId, data) => {
+    const item = memoryRecurring.find((r) => String(r._id) === String(id) && String(r.user) === String(userId));
+    if (item) {
+      if (data.title) item.title = data.title.trim();
+      if (data.paymentType) item.paymentType = data.paymentType;
+      if (data.recurrenceType) item.recurrenceType = data.recurrenceType;
+      if (data.amount !== undefined && !isNaN(data.amount)) item.amount = Number(data.amount);
+      if (data.reason !== undefined) item.reason = data.reason.trim();
+      if (data.status) item.status = data.status;
+      if (data.autoCreateDebit !== undefined) item.autoCreateDebit = Boolean(data.autoCreateDebit);
+      if (data.dueDate) {
+        item.dueDate = data.dueDate;
+        item.nextDueDate = data.dueDate;
+      }
+      saveToDisk();
+      return item;
+    }
+    return null;
+  },
+
   deleteRecurring: (id, userId) => {
     const initialLen = memoryRecurring.length;
     memoryRecurring = memoryRecurring.filter(

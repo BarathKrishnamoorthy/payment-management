@@ -207,39 +207,54 @@ const getRecurringById = async (req, res) => {
 // UPDATE Recurring Payment
 const updateRecurringPayment = async (req, res) => {
   try {
+    const userId = req.user ? req.user._id : 'demo-user-id';
+    const id = req.params.id;
+
     if (isDbReady()) {
-      const recurring = await RecurringPayment.findOne({ _id: req.params.id, user: req.user._id });
-      if (!recurring) {
-        return res.status(404).json({ success: false, message: 'Recurring payment not found.' });
+      let recurring = null;
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        recurring = await RecurringPayment.findOne({ _id: id, user: userId });
       }
 
-      const { title, paymentType, dueDate, recurrenceType, amount, reason, status, autoCreateDebit } = req.body;
+      if (recurring) {
+        const { title, paymentType, dueDate, recurrenceType, amount, reason, status, autoCreateDebit } = req.body;
 
-      if (title) recurring.title = title.trim();
-      if (paymentType) recurring.paymentType = paymentType;
-      if (recurrenceType) recurring.recurrenceType = recurrenceType;
-      if (amount !== undefined && !isNaN(amount)) recurring.amount = Number(amount);
-      if (reason !== undefined) recurring.reason = reason.trim();
-      if (status) recurring.status = status;
-      if (autoCreateDebit !== undefined) recurring.autoCreateDebit = Boolean(autoCreateDebit);
+        if (title) recurring.title = title.trim();
+        if (paymentType) recurring.paymentType = paymentType;
+        if (recurrenceType) recurring.recurrenceType = recurrenceType;
+        if (amount !== undefined && !isNaN(amount)) recurring.amount = Number(amount);
+        if (reason !== undefined) recurring.reason = reason.trim();
+        if (status) recurring.status = status;
+        if (autoCreateDebit !== undefined) recurring.autoCreateDebit = Boolean(autoCreateDebit);
 
-      if (dueDate) {
-        recurring.dueDate = new Date(dueDate);
-        recurring.nextDueDate = new Date(dueDate);
+        if (dueDate) {
+          recurring.dueDate = new Date(dueDate);
+          recurring.nextDueDate = new Date(dueDate);
+        }
+
+        await recurring.save();
+
+        // Keep fallbackStore in sync
+        fallbackStore.updateRecurring(id, userId, req.body);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Recurring payment updated successfully.',
+          recurring,
+        });
       }
+    }
 
-      await recurring.save();
-
-      return res.status(200).json({
-        success: true,
-        message: 'Recurring payment updated successfully.',
-        recurring,
-      });
+    // In fallback mode or when id was created in session/fallback store
+    const updated = fallbackStore.updateRecurring(id, userId, req.body);
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Recurring payment not found.' });
     }
 
     res.status(200).json({
       success: true,
-      message: 'Recurring payment updated (Session Mode).',
+      message: 'Recurring payment updated successfully.',
+      recurring: updated,
     });
   } catch (err) {
     console.error('[Recurring] Update error:', err);

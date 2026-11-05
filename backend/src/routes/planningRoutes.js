@@ -29,3 +29,4 @@ router.post('/savings-goals/:id/contributions', addGoalContribution);
 router.delete('/savings-goals/:id', deleteSavingsGoal);
 
 module.exports = router;
+

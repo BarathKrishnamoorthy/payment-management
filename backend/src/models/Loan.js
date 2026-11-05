@@ -98,3 +98,4 @@ const loanSchema = new mongoose.Schema(
 loanSchema.index({ user: 1, type: 1, status: 1 });
 
 module.exports = mongoose.model('Loan', loanSchema);
+

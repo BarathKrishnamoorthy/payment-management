@@ -164,6 +164,15 @@ export const MobileAPI = {
     return handleRes(res);
   },
 
+  updateRecurring: async (id: string, data: any) => {
+    const res = await fetch(`${currentApiUrl}/recurring/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
   markAsPaid: async (id: string) => {
     const res = await fetch(`${currentApiUrl}/recurring/${id}/pay`, {
       method: 'POST',

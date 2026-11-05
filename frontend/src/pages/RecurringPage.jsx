@@ -178,13 +178,26 @@ export const RecurringPage = () => {
   const handleOpenEdit = (item) => {
     setSelectedItem(item);
     setIsEditing(true);
-    setFormTitle(item.title);
-    setFormPaymentType(item.paymentType);
-    setFormRecurrenceType(item.recurrenceType);
-    setFormDueDate(new Date(item.nextDueDate).toISOString().split('T')[0]);
-    setFormAmount(String(item.amount));
+    setFormTitle(item.title || '');
+    setFormPaymentType(item.paymentType || 'EMI');
+    setFormRecurrenceType(item.recurrenceType || 'Monthly');
+
+    // Safe date parsing to prevent RangeError
+    const rawDate = item.nextDueDate || item.dueDate;
+    let formattedDate = new Date().toISOString().split('T')[0];
+    if (rawDate) {
+      try {
+        const parsed = new Date(rawDate);
+        if (!isNaN(parsed.getTime())) {
+          formattedDate = parsed.toISOString().split('T')[0];
+        }
+      } catch (e) {}
+    }
+    setFormDueDate(formattedDate);
+    setFormAmount(item.amount !== undefined ? String(item.amount) : '');
     setFormReason(item.reason || '');
     setFormAutoDebit(item.autoCreateDebit !== false);
+    setFormError('');
     setShowAddModal(true);
   };
 
@@ -214,11 +227,45 @@ export const RecurringPage = () => {
         autoCreateDebit: formAutoDebit,
       };
 
-      if (isEditing && selectedItem) {
-        await api.updateRecurringPayment(selectedItem._id, payload);
+      const itemId = selectedItem?._id || selectedItem?.id;
+
+      if (isEditing && itemId) {
+        await api.updateRecurringPayment(itemId, payload);
       } else {
         await api.createRecurringPayment(payload);
       }
+
+      // Optimistically update React state and localStorage cache immediately
+      const key = getCustomerKey();
+      setRecurringList((prevList) => {
+        let updatedList;
+        if (isEditing && itemId) {
+          updatedList = prevList.map((r) =>
+            r._id === itemId || r.id === itemId
+              ? {
+                  ...r,
+                  ...payload,
+                  nextDueDate: formDueDate,
+                  dueDate: formDueDate,
+                }
+              : r
+          );
+        } else {
+          const newEntry = {
+            _id: 'rec-' + Date.now(),
+            ...payload,
+            nextDueDate: formDueDate,
+            dueDate: formDueDate,
+            status: 'Active',
+            paymentHistory: [],
+          };
+          updatedList = [newEntry, ...prevList];
+        }
+        try {
+          localStorage.setItem(`rb_rec_${key}`, JSON.stringify(updatedList));
+        } catch (e) {}
+        return updatedList;
+      });
 
       setShowAddModal(false);
       resetForm();
@@ -230,12 +277,21 @@ export const RecurringPage = () => {
     }
   };
 
-  const handleDeleteRecurring = async (id) => {
+  const handleDeleteRecurring = async (item) => {
+    const id = typeof item === 'object' ? item?._id || item?.id : item;
     if (!window.confirm('Are you sure you want to delete this recurring payment?')) {
       return;
     }
     try {
       await api.deleteRecurringPayment(id);
+      const key = getCustomerKey();
+      setRecurringList((prev) => {
+        const next = prev.filter((r) => r._id !== id && r.id !== id);
+        try {
+          localStorage.setItem(`rb_rec_${key}`, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
       fetchRecurring();
     } catch (err) {
       alert(err.message || 'Failed to delete recurring payment.');

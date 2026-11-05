@@ -80,3 +80,4 @@ const savingsGoalSchema = new mongoose.Schema(
 savingsGoalSchema.index({ user: 1, status: 1 });
 
 module.exports = mongoose.model('SavingsGoal', savingsGoalSchema);
+
