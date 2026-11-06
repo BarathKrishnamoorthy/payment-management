@@ -1,12 +1,17 @@
 const LIVE_BACKEND_URL = 'https://backend-nine-zeta-zy9fgdrzlm.vercel.app/api';
 
-const BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' &&
-  window.location.hostname !== 'localhost' &&
-  window.location.hostname !== '127.0.0.1'
-    ? LIVE_BACKEND_URL
-    : '/api');
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.includes('vercel.app') || (host !== 'localhost' && host !== '127.0.0.1')) {
+      return LIVE_BACKEND_URL;
+    }
+  }
+  return '/api';
+};
+
+const BASE_URL = getBaseUrl();
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('rb_token');
@@ -14,6 +19,12 @@ const getAuthHeaders = () => {
 };
 
 const handleResponse = async (res) => {
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    console.warn('[API] Received HTML response instead of JSON from:', res.url);
+    throw new Error('Backend returned HTML instead of JSON. Please check backend connection.');
+  }
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401) {

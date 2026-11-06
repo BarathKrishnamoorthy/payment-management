@@ -40,10 +40,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem('rb_token');
+      const storedUser = localStorage.getItem('rb_user');
+
       if (storedToken) {
         try {
           const res = await api.getMe();
-          if (res.success && res.user) {
+          if (res && res.success && res.user) {
             const rawUser = res.user;
             const isOnboarded = checkCustomerOnboarded(rawUser);
 
@@ -55,12 +57,16 @@ export const AuthProvider = ({ children }) => {
 
             setUser(mergedUser);
             localStorage.setItem('rb_user', JSON.stringify(mergedUser));
-          } else {
+          } else if (!storedUser) {
+            // Only clear token if we have no stored user profile at all
             logout();
           }
         } catch (err) {
-          console.warn('[AuthContext] Session expired or invalid:', err.message);
-          logout();
+          console.warn('[AuthContext] Session verification warning (maintaining local session):', err.message);
+          // Do NOT logout on transient network failure or API HTML response when we have a valid local session
+          if (!storedUser) {
+            logout();
+          }
         }
       }
       setLoading(false);
