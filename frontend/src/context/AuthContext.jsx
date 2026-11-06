@@ -3,29 +3,20 @@ import { api } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const isModuleTutorialDoneLocally = (module, u) => {
-  if (!u) return false;
-  const phone = (u.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
-  const rawId = u._id || u.id || '';
-  if (phone && localStorage.getItem(`rb_tut_${module}_${phone}`) === 'done') return true;
-  if (rawId && localStorage.getItem(`rb_tut_${module}_${rawId}`) === 'done') return true;
-  if (localStorage.getItem(`rb_tut_${module}_customer`) === 'done') return true;
-  if (localStorage.getItem(`rb_tut_${module}_done`) === 'done') return true;
-  return false;
-};
-
 const checkCustomerOnboarded = (u) => {
   if (!u) return false;
-  const phone = (u.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
-  const localOnboarded = phone ? localStorage.getItem(`rb_customer_onboarded_${phone}`) === 'true' : false;
-  const localName = phone ? localStorage.getItem(`rb_customer_name_${phone}`) : null;
-  const hasCustomName = Boolean(
+  // If backend says user is onboarded, they are onboarded
+  if (u.isOnboarded === true) return true;
+  // If user has a valid custom name (not empty, not default 'Customer')
+  if (
     u.name &&
     u.name.trim() !== '' &&
     !u.name.startsWith('Customer ') &&
     u.name !== 'Customer'
-  );
-  return Boolean(u.isOnboarded || hasCustomName || localOnboarded || (localName && localName.trim() !== ''));
+  ) {
+    return true;
+  }
+  return false;
 };
 
 export const AuthProvider = ({ children }) => {
@@ -45,7 +36,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('rb_token') || null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize and verify session on load
+  // Initialize and verify session on load from backend
   useEffect(() => {
     const initAuth = async () => {
       const storedToken = localStorage.getItem('rb_token');
@@ -54,39 +45,18 @@ export const AuthProvider = ({ children }) => {
           const res = await api.getMe();
           if (res.success && res.user) {
             const rawUser = res.user;
-            const phone = (rawUser.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
-            const localName = phone ? localStorage.getItem(`rb_customer_name_${phone}`) : null;
-            const hasCustomName = Boolean(
-              rawUser.name &&
-              rawUser.name.trim() !== '' &&
-              !rawUser.name.startsWith('Customer ') &&
-              rawUser.name !== 'Customer'
-            );
             const isOnboarded = checkCustomerOnboarded(rawUser);
-            const resolvedName = (hasCustomName ? rawUser.name : localName) || rawUser.name || (phone ? `Customer ${phone.slice(-4)}` : 'Customer');
-
-            // MERGE with local tutorial completions so a refresh NEVER resurrects completed tours
-            const mergedTutorialStatus = {
-              dashboard: Boolean(rawUser.tutorialStatus?.dashboard || isModuleTutorialDoneLocally('dashboard', rawUser)),
-              transactions: Boolean(rawUser.tutorialStatus?.transactions || isModuleTutorialDoneLocally('transactions', rawUser)),
-              recurring: Boolean(rawUser.tutorialStatus?.recurring || isModuleTutorialDoneLocally('recurring', rawUser)),
-              reports: Boolean(rawUser.tutorialStatus?.reports || isModuleTutorialDoneLocally('reports', rawUser)),
-            };
 
             const mergedUser = {
               ...rawUser,
-              name: resolvedName,
               isOnboarded,
-              tutorialStatus: mergedTutorialStatus,
+              tutorialStatus: rawUser.tutorialStatus || {},
             };
-
-            if (phone && isOnboarded) {
-              localStorage.setItem(`rb_customer_onboarded_${phone}`, 'true');
-              if (resolvedName) localStorage.setItem(`rb_customer_name_${phone}`, resolvedName);
-            }
 
             setUser(mergedUser);
             localStorage.setItem('rb_user', JSON.stringify(mergedUser));
+          } else {
+            logout();
           }
         } catch (err) {
           console.warn('[AuthContext] Session expired or invalid:', err.message);
@@ -104,36 +74,29 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (authToken, userData) => {
+    // Clear any previous user's cached ledger/dashboard data to ensure strict user isolation
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith('rb_dash_') ||
+          key.startsWith('rb_txns_') ||
+          key.startsWith('rb_rec_') ||
+          key.startsWith('rb_tut_'))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
     setToken(authToken);
-    const phone = (userData?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
-    const localName = phone ? localStorage.getItem(`rb_customer_name_${phone}`) : null;
-    const hasCustomName = Boolean(
-      userData?.name &&
-      userData.name.trim() !== '' &&
-      !userData.name.startsWith('Customer ') &&
-      userData.name !== 'Customer'
-    );
     const isOnboarded = checkCustomerOnboarded(userData);
-    const resolvedName = (hasCustomName ? userData.name : localName) || userData?.name || (phone ? `Customer ${phone.slice(-4)}` : 'Customer');
-
-    const mergedTutorialStatus = {
-      dashboard: Boolean(userData?.tutorialStatus?.dashboard || isModuleTutorialDoneLocally('dashboard', userData)),
-      transactions: Boolean(userData?.tutorialStatus?.transactions || isModuleTutorialDoneLocally('transactions', userData)),
-      recurring: Boolean(userData?.tutorialStatus?.recurring || isModuleTutorialDoneLocally('recurring', userData)),
-      reports: Boolean(userData?.tutorialStatus?.reports || isModuleTutorialDoneLocally('reports', userData)),
-    };
-
     const mergedUser = {
       ...userData,
-      name: resolvedName,
       isOnboarded,
-      tutorialStatus: mergedTutorialStatus,
+      tutorialStatus: userData?.tutorialStatus || {},
     };
-
-    if (phone && isOnboarded) {
-      localStorage.setItem(`rb_customer_onboarded_${phone}`, 'true');
-      if (resolvedName) localStorage.setItem(`rb_customer_name_${phone}`, resolvedName);
-    }
 
     setUser(mergedUser);
     localStorage.setItem('rb_token', authToken);
@@ -145,20 +108,32 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('rb_token');
     localStorage.removeItem('rb_user');
+
+    // Clean up all cached session keys
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith('rb_dash_') ||
+          key.startsWith('rb_txns_') ||
+          key.startsWith('rb_rec_') ||
+          key.startsWith('rb_customer_') ||
+          key.startsWith('rb_tut_'))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
   };
 
   const completeOnboarding = async (data) => {
     const res = await api.completeOnboarding(data);
     if (res.success && res.user) {
-      const phone = (res.user.phoneNumber || user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
       const updatedUser = {
         ...res.user,
         isOnboarded: true,
       };
-      if (phone) {
-        localStorage.setItem(`rb_customer_onboarded_${phone}`, 'true');
-        if (data.name) localStorage.setItem(`rb_customer_name_${phone}`, data.name.trim());
-      }
       setUser(updatedUser);
       localStorage.setItem('rb_user', JSON.stringify(updatedUser));
     }
@@ -168,15 +143,10 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (data) => {
     const res = await api.updateProfile(data);
     if (res.success && res.user) {
-      const phone = (res.user.phoneNumber || user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
       const updatedUser = {
         ...res.user,
-        isOnboarded: true,
+        isOnboarded: checkCustomerOnboarded(res.user),
       };
-      if (phone && data.name) {
-        localStorage.setItem(`rb_customer_onboarded_${phone}`, 'true');
-        localStorage.setItem(`rb_customer_name_${phone}`, data.name.trim());
-      }
       setUser(updatedUser);
       localStorage.setItem('rb_user', JSON.stringify(updatedUser));
     }
@@ -185,15 +155,11 @@ export const AuthProvider = ({ children }) => {
 
   const setModuleTutorialDone = async (module) => {
     try {
-      const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
-      const rawId = user?._id || user?.id || '';
-      // Mark permanently under all possible customer keys in browser localStorage
-      if (phone) localStorage.setItem(`rb_tut_${module}_${phone}`, 'done');
-      if (rawId) localStorage.setItem(`rb_tut_${module}_${rawId}`, 'done');
-      localStorage.setItem(`rb_tut_${module}_customer`, 'done');
-      localStorage.setItem(`rb_tut_${module}_done`, 'done');
+      const uid = user?._id || user?.id || '';
+      if (uid) {
+        localStorage.setItem(`rb_tut_${module}_${uid}`, 'done');
+      }
 
-      // Optimistic state update
       setUser((prev) => {
         if (!prev) return prev;
         const updated = {
@@ -215,19 +181,15 @@ export const AuthProvider = ({ children }) => {
 
   const resetAllTutorials = async (targetModule) => {
     try {
-      const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
-      const rawId = user?._id || user?.id || '';
-      const clearKeys = (m) => {
-        if (phone) localStorage.removeItem(`rb_tut_${m}_${phone}`);
-        if (rawId) localStorage.removeItem(`rb_tut_${m}_${rawId}`);
-        localStorage.removeItem(`rb_tut_${m}_customer`);
-        localStorage.removeItem(`rb_tut_${m}_done`);
-      };
-
-      if (targetModule) {
-        clearKeys(targetModule);
-      } else {
-        ['dashboard', 'transactions', 'recurring', 'reports'].forEach(clearKeys);
+      const uid = user?._id || user?.id || '';
+      if (uid) {
+        if (targetModule) {
+          localStorage.removeItem(`rb_tut_${targetModule}_${uid}`);
+        } else {
+          ['dashboard', 'transactions', 'recurring', 'reports', 'accounts', 'family', 'planning', 'loans'].forEach((m) => {
+            localStorage.removeItem(`rb_tut_${m}_${uid}`);
+          });
+        }
       }
 
       setUser((prev) => {
@@ -236,10 +198,9 @@ export const AuthProvider = ({ children }) => {
         if (targetModule) {
           current[targetModule] = false;
         } else {
-          current.dashboard = false;
-          current.transactions = false;
-          current.recurring = false;
-          current.reports = false;
+          Object.keys(current).forEach((k) => {
+            current[k] = false;
+          });
         }
         const updated = { ...prev, tutorialStatus: current };
         localStorage.setItem('rb_user', JSON.stringify(updated));

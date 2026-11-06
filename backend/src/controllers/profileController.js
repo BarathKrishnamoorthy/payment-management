@@ -83,11 +83,18 @@ const updateTutorialStatus = async (req, res) => {
       const user = await User.findById(userId);
       if (user) {
         if (!user.tutorialStatus) {
-          user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+          user.tutorialStatus = {};
         }
         user.tutorialStatus[modName] = Boolean(completed);
         user.markModified('tutorialStatus');
         await user.save();
+
+        return res.status(200).json({
+          success: true,
+          message: `Tutorial for ${modName} marked as ${completed ? 'completed' : 'pending'}.`,
+          tutorialStatus: user.tutorialStatus,
+          isDbConnected: true,
+        });
       }
     }
 
@@ -97,7 +104,7 @@ const updateTutorialStatus = async (req, res) => {
       success: true,
       message: `Tutorial for ${modName} marked as ${completed ? 'completed' : 'pending'}.`,
       tutorialStatus: updatedStatus,
-      isDbConnected: isDbReady(),
+      isDbConnected: false,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to update tutorial progress: ' + err.message });
@@ -113,15 +120,31 @@ const resetTutorialStatus = async (req, res) => {
       const user = await User.findById(userId);
       if (user) {
         if (!user.tutorialStatus) {
-          user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+          user.tutorialStatus = {};
         }
         if (targetModule) {
           user.tutorialStatus[targetModule] = false;
         } else {
-          user.tutorialStatus = { dashboard: false, transactions: false, recurring: false, reports: false };
+          user.tutorialStatus = {
+            dashboard: false,
+            transactions: false,
+            recurring: false,
+            reports: false,
+            accounts: false,
+            family: false,
+            planning: false,
+            loans: false,
+          };
         }
         user.markModified('tutorialStatus');
         await user.save();
+
+        return res.status(200).json({
+          success: true,
+          message: targetModule ? `Tutorial for ${targetModule} reset.` : 'All tutorials reset.',
+          tutorialStatus: user.tutorialStatus,
+          isDbConnected: true,
+        });
       }
     }
 
@@ -131,7 +154,7 @@ const resetTutorialStatus = async (req, res) => {
       success: true,
       message: targetModule ? `Tutorial for ${targetModule} reset.` : 'All tutorials reset.',
       tutorialStatus: updatedStatus,
-      isDbConnected: isDbReady(),
+      isDbConnected: false,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to reset tutorial.' });

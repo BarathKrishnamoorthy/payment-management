@@ -109,8 +109,6 @@ export const AuthPage = ({ onAuthSuccess }) => {
 
   const handleSuccessfulVerification = (res, rawPhone) => {
     const cleanPhone = (res.user?.phoneNumber || rawPhone || phoneNumber).replace(/[^0-9]/g, '').slice(-10);
-    const localOnboarded = localStorage.getItem(`rb_customer_onboarded_${cleanPhone}`) === 'true';
-    const localName = localStorage.getItem(`rb_customer_name_${cleanPhone}`);
     const hasCustomName = Boolean(
       res.user?.name &&
       res.user.name.trim() !== '' &&
@@ -118,27 +116,13 @@ export const AuthPage = ({ onAuthSuccess }) => {
       res.user.name !== 'Customer'
     );
 
-    const isAlreadyOnboarded = Boolean(
-      res.user?.isOnboarded ||
-      hasCustomName ||
-      localOnboarded ||
-      Boolean(localName && localName.trim() !== '')
-    );
+    const isAlreadyOnboarded = Boolean(res.user?.isOnboarded === true || hasCustomName);
 
     const finalUser = {
       ...res.user,
-      name: (hasCustomName ? res.user.name : localName) || res.user?.name || `Customer ${cleanPhone.slice(-4)}`,
+      name: res.user?.name || `Customer ${cleanPhone.slice(-4)}`,
       isOnboarded: isAlreadyOnboarded,
     };
-
-    // Auto-sync customer name to backend if backend was cold-started or lacked name
-    if (localOnboarded && localName && (!res.user?.name || res.user.name.startsWith('Customer '))) {
-      api.updateProfile({
-        name: localName,
-        bankName: localStorage.getItem(`rb_customer_bank_${cleanPhone}`) || '',
-        accountNumber: localStorage.getItem(`rb_customer_acc_${cleanPhone}`) || '',
-      }).catch(() => {});
-    }
 
     login(res.token, finalUser);
     if (onAuthSuccess) {

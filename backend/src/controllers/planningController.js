@@ -11,11 +11,12 @@ const isDbReady = () => mongoose.connection.readyState === 1;
 // ==========================================
 const getBudgets = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : 'demo-user-id';
+    const rawUserId = req.user ? req.user._id : 'demo-user-id';
+    const userId = mongoose.Types.ObjectId.isValid(rawUserId) ? new mongoose.Types.ObjectId(rawUserId) : rawUserId;
     const workspaceId = req.query.workspaceId || 'personal';
 
     if (!isDbReady()) {
-      const budgets = fallbackStore.getBudgets(userId, workspaceId);
+      const budgets = fallbackStore.getBudgets(rawUserId, workspaceId);
       return res.status(200).json({ success: true, budgets, isDbConnected: false });
     }
 

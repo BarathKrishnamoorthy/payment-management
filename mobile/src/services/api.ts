@@ -271,17 +271,59 @@ export const MobileAPI = {
     return handleRes(res);
   },
 
-  inviteFamilyMember: async (workspaceId: string, mobileNumber: string, role?: string, name?: string) => {
-    const res = await fetch(`${currentApiUrl}/workspaces/${workspaceId}/members`, {
+  inviteFamilyMember: async (
+    workspaceId: string,
+    mobileNumber: string,
+    role?: string,
+    name?: string,
+    relationship?: string,
+    email?: string,
+    monthlyBudget?: number,
+    notes?: string
+  ) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/family/${workspaceId}/members`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ mobileNumber, role, name }),
+      body: JSON.stringify({ mobileNumber, role, name, relationship, email, monthlyBudget, notes }),
+    });
+    return handleRes(res);
+  },
+
+  updateFamilyMember: async (workspaceId: string, memberId: string, data: any) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/family/${workspaceId}/members/${memberId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleRes(res);
+  },
+
+  removeFamilyMember: async (workspaceId: string, memberId: string) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/family/${workspaceId}/members/${memberId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    return handleRes(res);
+  },
+
+  getFamilyMemberPayments: async (workspaceId: string, memberId: string) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/family/${workspaceId}/members/${memberId}/payments`, {
+      headers: getHeaders(),
+    });
+    return handleRes(res);
+  },
+
+  addFamilyMemberPayment: async (workspaceId: string, memberId: string, data: any) => {
+    const res = await fetch(`${currentApiUrl}/workspaces/family/${workspaceId}/members/${memberId}/payments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
     });
     return handleRes(res);
   },
 
   getFamilySummary: async (workspaceId: string) => {
-    const res = await fetch(`${currentApiUrl}/workspaces/${workspaceId}/summary`, { headers: getHeaders() });
+    const res = await fetch(`${currentApiUrl}/workspaces/family/${workspaceId}/summary`, { headers: getHeaders() });
     return handleRes(res);
   },
 

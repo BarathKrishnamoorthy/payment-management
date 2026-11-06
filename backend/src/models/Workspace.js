@@ -16,6 +16,25 @@ const memberSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    relationship: {
+      type: String,
+      default: 'Family Member',
+      trim: true,
+    },
+    email: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    monthlyBudget: {
+      type: Number,
+      default: 0,
+    },
+    notes: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     role: {
       type: String,
       enum: ['owner', 'admin', 'member', 'viewer'],

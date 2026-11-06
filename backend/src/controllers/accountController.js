@@ -51,12 +51,14 @@ const createAccount = async (req, res) => {
 
     const opBal = Number(openingBalance) || 0;
 
+    const normalizedType = accountType ? String(accountType).toLowerCase() : 'savings';
+
     if (!isDbReady()) {
       const acc = fallbackStore.createAccount({
         user: userId,
         workspaceId: workspaceId || 'personal',
         accountName: accountName.trim(),
-        accountType: accountType || 'savings',
+        accountType: normalizedType,
         bankName: bankName ? bankName.trim() : '',
         accountNumber: accountNumber ? accountNumber.trim() : '',
         accountNumberLast4: accountNumber ? accountNumber.trim().slice(-4) : '',
@@ -75,7 +77,7 @@ const createAccount = async (req, res) => {
       user: userId,
       workspaceId: workspaceId || 'personal',
       accountName: accountName.trim(),
-      accountType: accountType || 'savings',
+      accountType: normalizedType,
       bankName: bankName ? bankName.trim() : '',
       accountNumber: accountNumber ? accountNumber.trim() : '',
       accountNumberLast4: accountNumber ? accountNumber.trim().slice(-4) : '',
@@ -110,11 +112,10 @@ const updateAccount = async (req, res) => {
     const account = await Account.findOneAndUpdate(
       { _id: id, user: userId },
       {
-        accountName,
-        accountType,
-        bankName,
-        accountNumber,
-        accountNumberLast4: accountNumber ? accountNumber.slice(-4) : undefined,
+        ...(accountName ? { accountName: accountName.trim() } : {}),
+        ...(accountType ? { accountType: String(accountType).toLowerCase() } : {}),
+        ...(bankName !== undefined ? { bankName: bankName.trim() } : {}),
+        ...(accountNumber !== undefined ? { accountNumber: accountNumber.trim(), accountNumberLast4: accountNumber.trim().slice(-4) } : {}),
         ...(isDefault !== undefined ? { isDefault: Boolean(isDefault) } : {}),
       },
       { new: true }

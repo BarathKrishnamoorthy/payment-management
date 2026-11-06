@@ -201,29 +201,20 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
 
   // Check if first-time walkthrough should be displayed
   useEffect(() => {
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    const isDoneLocally =
-      (phone && localStorage.getItem(`rb_tut_dashboard_${phone}`) === 'done') ||
-      (rawId && localStorage.getItem(`rb_tut_dashboard_${rawId}`) === 'done') ||
-      localStorage.getItem('rb_tut_dashboard_customer') === 'done' ||
-      localStorage.getItem('rb_tut_dashboard_done') === 'done';
+    const isDoneLocally = rawId && localStorage.getItem(`rb_tut_dashboard_${rawId}`) === 'done';
     const isDoneServer = Boolean(user?.tutorialStatus?.dashboard);
 
     if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
-  }, [user, loading]);
+  }, [user?.tutorialStatus?.dashboard, loading]);
 
   const handleFinishTour = () => {
     setShowTour(false);
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    if (phone) localStorage.setItem(`rb_tut_dashboard_${phone}`, 'done');
     if (rawId) localStorage.setItem(`rb_tut_dashboard_${rawId}`, 'done');
-    localStorage.setItem('rb_tut_dashboard_customer', 'done');
-    localStorage.setItem('rb_tut_dashboard_done', 'done');
     setModuleTutorialDone('dashboard');
   };
 
@@ -355,6 +346,16 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
 
         {/* Top Right Action Buttons matching screenshot */}
         <div id="dash-actions" className="flex items-center gap-2.5 flex-wrap">
+          {/* Replay Tutorial button */}
+          <button
+            onClick={() => setShowTour(true)}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl bg-white border border-purple-200 hover:bg-purple-50 text-slate-700 text-xs font-bold shadow-2xs transition-all hover:scale-102"
+            title="Replay Interactive Walkthrough"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+            <span>Tour</span>
+          </button>
+
           {/* + Add Income */}
           <button
             onClick={() => onTriggerAddTxn ? onTriggerAddTxn('credit') : setActivePage('transactions')}

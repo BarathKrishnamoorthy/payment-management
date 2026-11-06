@@ -133,8 +133,12 @@ const getTransactions = async (req, res) => {
     ]);
 
     // Calculate totals for currently matched query
+    const aggQuery = {
+      ...query,
+      user: mongoose.Types.ObjectId.isValid(req.user._id) ? new mongoose.Types.ObjectId(req.user._id) : req.user._id,
+    };
     const summaryAggregation = await Transaction.aggregate([
-      { $match: query },
+      { $match: aggQuery },
       {
         $group: {
           _id: '$type',

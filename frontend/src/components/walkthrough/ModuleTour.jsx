@@ -6,6 +6,13 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
   const [targetRect, setTargetRect] = useState(null);
   const overlayRef = useRef(null);
 
+  // Always reset to first step whenever the tour is opened
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentStep(0);
+    }
+  }, [isOpen]);
+
   const step = steps[currentStep] || {};
 
   // Find target element position
@@ -19,26 +26,27 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
       const el = document.getElementById(step.targetId) || document.querySelector(`[data-tour="${step.targetId}"]`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const rect = el.getBoundingClientRect();
-        setTargetRect({
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-          bottom: rect.bottom,
-          right: rect.right,
-        });
+        setTimeout(() => {
+          const rect = el.getBoundingClientRect();
+          setTargetRect({
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            bottom: rect.bottom,
+            right: rect.right,
+          });
+        }, 180);
       } else {
         setTargetRect(null);
       }
     };
 
-    const timer = setTimeout(updatePosition, 150);
+    updatePosition();
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
 
     return () => {
-      clearTimeout(timer);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
@@ -69,7 +77,7 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
 
   const handleNext = () => {
     if (isLast) {
-      onFinish();
+      if (onFinish) onFinish();
     } else {
       setCurrentStep((prev) => prev + 1);
     }
@@ -82,10 +90,16 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
   };
 
   const handleSkip = () => {
-    onFinish();
+    if (onFinish) {
+      onFinish();
+    } else if (onClose) {
+      onClose();
+    }
   };
 
   // Compute tooltip position relative to target or viewport center
+  const placement = step.placement || 'bottom';
+
   const getTooltipStyle = () => {
     if (!targetRect) {
       return {
@@ -95,20 +109,19 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
       };
     }
 
-    const placement = step.placement || 'bottom';
     const margin = 18;
 
     if (placement === 'bottom') {
-      const top = Math.min(window.innerHeight - 320, targetRect.bottom + margin);
-      const left = Math.max(16, Math.min(window.innerWidth - 380, targetRect.left + (targetRect.width / 2) - 180));
+      const top = Math.min(window.innerHeight - 340, targetRect.bottom + margin);
+      const left = Math.max(16, Math.min(window.innerWidth - 380, targetRect.left + targetRect.width / 2 - 180));
       return { top: `${top}px`, left: `${left}px` };
     } else if (placement === 'top') {
-      const top = Math.max(16, targetRect.top - 280);
-      const left = Math.max(16, Math.min(window.innerWidth - 380, targetRect.left + (targetRect.width / 2) - 180));
+      const top = Math.max(16, targetRect.top - 310);
+      const left = Math.max(16, Math.min(window.innerWidth - 380, targetRect.left + targetRect.width / 2 - 180));
       return { top: `${top}px`, left: `${left}px` };
     } else if (placement === 'left') {
       const top = Math.max(16, targetRect.top);
-      const left = Math.max(16, targetRect.left - 380);
+      const left = Math.max(16, targetRect.left - 390);
       return { top: `${top}px`, left: `${left}px` };
     } else {
       // right
@@ -121,7 +134,7 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" ref={overlayRef}>
       {/* Darkened backdrop with animated purple tint */}
-      <div 
+      <div
         className="fixed inset-0 bg-slate-950/70 backdrop-blur-[2px] transition-opacity duration-300 pointer-events-auto"
         onClick={handleSkip}
       />
@@ -150,8 +163,22 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
         className="fixed z-[60] w-[90vw] max-w-sm sm:max-w-md bg-white rounded-2xl shadow-2xl border border-brand-200 overflow-hidden transition-all duration-300"
         style={getTooltipStyle()}
       >
+        {/* Directional Arrow Pointer pointing directly to the target element */}
+        {targetRect && placement === 'bottom' && (
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-brand-700 rotate-45 border-l border-t border-brand-400 pointer-events-none" />
+        )}
+        {targetRect && placement === 'top' && (
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-r border-b border-brand-200 pointer-events-none" />
+        )}
+        {targetRect && placement === 'right' && (
+          <div className="absolute top-8 -left-2 w-4 h-4 bg-brand-700 rotate-45 border-l border-b border-brand-400 pointer-events-none" />
+        )}
+        {targetRect && placement === 'left' && (
+          <div className="absolute top-8 -right-2 w-4 h-4 bg-white rotate-45 border-r border-t border-brand-200 pointer-events-none" />
+        )}
+
         {/* Header with step pill and skip */}
-        <div className="bg-gradient-to-r from-brand-700 via-brand-600 to-brand-800 px-5 py-3.5 text-white flex items-center justify-between">
+        <div className="bg-gradient-to-r from-brand-700 via-brand-600 to-brand-800 px-5 py-3.5 text-white flex items-center justify-between relative z-10">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-brand-200" />
@@ -175,7 +202,7 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
         </div>
 
         {/* Card Body */}
-        <div className="p-5">
+        <div className="p-5 relative z-10">
           {/* Directional visual arrow pill */}
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-xs font-semibold mb-3">
             <Navigation className="w-3.5 h-3.5 text-brand-600 animate-bounce-subtle" />
@@ -213,6 +240,7 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
             <div className="flex items-center gap-2">
               {!isFirst && (
                 <button
+                  type="button"
                   onClick={handlePrev}
                   className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors flex items-center gap-1"
                 >
@@ -222,6 +250,7 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
               )}
 
               <button
+                type="button"
                 onClick={handleSkip}
                 className="px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
               >
@@ -229,6 +258,7 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
               </button>
 
               <button
+                type="button"
                 onClick={handleNext}
                 className="px-4 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5"
               >
@@ -251,4 +281,3 @@ export const ModuleTour = ({ steps = [], isOpen, onClose, onFinish, moduleName =
     </div>
   );
 };
-

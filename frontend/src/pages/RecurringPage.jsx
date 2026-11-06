@@ -131,29 +131,20 @@ export const RecurringPage = () => {
 
   // First-time walkthrough
   useEffect(() => {
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    const isDoneLocally =
-      (phone && localStorage.getItem(`rb_tut_recurring_${phone}`) === 'done') ||
-      (rawId && localStorage.getItem(`rb_tut_recurring_${rawId}`) === 'done') ||
-      localStorage.getItem('rb_tut_recurring_customer') === 'done' ||
-      localStorage.getItem('rb_tut_recurring_done') === 'done';
+    const isDoneLocally = rawId && localStorage.getItem(`rb_tut_recurring_${rawId}`) === 'done';
     const isDoneServer = Boolean(user?.tutorialStatus?.recurring);
 
     if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
-  }, [user, loading]);
+  }, [user?.tutorialStatus?.recurring, loading]);
 
   const handleFinishTour = () => {
     setShowTour(false);
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    if (phone) localStorage.setItem(`rb_tut_recurring_${phone}`, 'done');
     if (rawId) localStorage.setItem(`rb_tut_recurring_${rawId}`, 'done');
-    localStorage.setItem('rb_tut_recurring_customer', 'done');
-    localStorage.setItem('rb_tut_recurring_done', 'done');
     setModuleTutorialDone('recurring');
   };
 
@@ -389,14 +380,26 @@ export const RecurringPage = () => {
           </p>
         </div>
 
-        <button
-          id="rec-add-btn"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white text-xs font-bold shadow-purple-sm transition-all"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Add Recurring Payment</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Replay Tutorial Button */}
+          <button
+            onClick={() => setShowTour(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-slate-700 text-xs font-bold shadow-sm transition-all"
+            title="Replay Interactive Tour"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+            <span>Tour</span>
+          </button>
+
+          <button
+            id="rec-add-btn"
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white text-xs font-bold shadow-purple-sm transition-all"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Add Recurring Payment</span>
+          </button>
+        </div>
       </div>
 
       {/* Category Pills Filter */}

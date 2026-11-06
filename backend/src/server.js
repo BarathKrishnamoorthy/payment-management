@@ -78,14 +78,16 @@ let lastAttempt = 0;
 
 app.use(async (req, res, next) => {
   const ready = require('mongoose').connection.readyState === 1;
-  if (!ready && !isConnecting && Date.now() - lastAttempt > 15000) {
+  if (!ready && !isConnecting && Date.now() - lastAttempt > 5000) {
     lastAttempt = Date.now();
     isConnecting = true;
-    connectDB()
-      .catch(() => {})
-      .finally(() => {
-        isConnecting = false;
-      });
+    try {
+      await connectDB();
+    } catch (e) {
+      // ignore
+    } finally {
+      isConnecting = false;
+    }
   }
 
   req.isDbConnected = require('mongoose').connection.readyState === 1;
@@ -126,6 +128,11 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 if (process.env.VERCEL !== '1') {
+  // Connect to MongoDB immediately at boot
+  connectDB().catch((err) => {
+    console.warn('[Server] Initial MongoDB connection attempt:', err.message);
+  });
+
   app.listen(PORT, () => {
     console.log(`\n=================================================`);
     console.log(` RB Payment Management Backend API`);

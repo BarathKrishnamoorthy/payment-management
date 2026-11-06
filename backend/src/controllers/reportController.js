@@ -5,11 +5,12 @@ const fallbackStore = require('../utils/fallbackStore');
 
 const getReportAnalytics = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : 'demo-user-id';
+    const rawUserId = req.user ? req.user._id : 'demo-user-id';
+    const userId = mongoose.Types.ObjectId.isValid(rawUserId) ? new mongoose.Types.ObjectId(rawUserId) : rawUserId;
     const { startDate, endDate, timeframe = 'all' } = req.query;
 
     if (mongoose.connection.readyState !== 1) {
-      const data = fallbackStore.getReportAnalytics(userId, timeframe, startDate, endDate);
+      const data = fallbackStore.getReportAnalytics(rawUserId, timeframe, startDate, endDate);
       return res.status(200).json({
         ...data,
         isDbConnected: false,

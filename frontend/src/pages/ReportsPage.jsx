@@ -67,29 +67,20 @@ export const ReportsPage = () => {
 
   // First-time walkthrough
   useEffect(() => {
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    const isDoneLocally =
-      (phone && localStorage.getItem(`rb_tut_reports_${phone}`) === 'done') ||
-      (rawId && localStorage.getItem(`rb_tut_reports_${rawId}`) === 'done') ||
-      localStorage.getItem('rb_tut_reports_customer') === 'done' ||
-      localStorage.getItem('rb_tut_reports_done') === 'done';
+    const isDoneLocally = rawId && localStorage.getItem(`rb_tut_reports_${rawId}`) === 'done';
     const isDoneServer = Boolean(user?.tutorialStatus?.reports);
 
     if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
-  }, [user, loading]);
+  }, [user?.tutorialStatus?.reports, loading]);
 
   const handleFinishTour = () => {
     setShowTour(false);
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    if (phone) localStorage.setItem(`rb_tut_reports_${phone}`, 'done');
     if (rawId) localStorage.setItem(`rb_tut_reports_${rawId}`, 'done');
-    localStorage.setItem('rb_tut_reports_customer', 'done');
-    localStorage.setItem('rb_tut_reports_done', 'done');
     setModuleTutorialDone('reports');
   };
 
@@ -194,6 +185,16 @@ export const ReportsPage = () => {
 
         {/* Export & Print Buttons */}
         <div id="rep-export-btn" className="flex items-center gap-2">
+          {/* Replay Tutorial Button */}
+          <button
+            onClick={() => setShowTour(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-slate-700 text-xs font-bold shadow-sm transition-all"
+            title="Replay Interactive Tour"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+            <span>Tour</span>
+          </button>
+
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-brand-700 text-xs font-bold shadow-sm transition-all"

@@ -355,6 +355,37 @@ export const api = {
     return handleResponse(res);
   },
 
+  updateFamilyMember: async (workspaceId, memberId, data) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/members/${memberId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  getFamilyMemberPayments: async (workspaceId, memberId) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/members/${memberId}/payments`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse(res);
+  },
+
+  addFamilyMemberPayment: async (workspaceId, memberId, data) => {
+    const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/members/${memberId}/payments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
   removeFamilyMember: async (workspaceId, memberId) => {
     const res = await fetch(`${BASE_URL}/workspaces/family/${workspaceId}/members/${memberId}`, {
       method: 'DELETE',

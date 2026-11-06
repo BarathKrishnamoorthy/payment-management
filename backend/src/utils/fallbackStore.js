@@ -148,20 +148,36 @@ module.exports = {
     for (const u of memoryUsers.values()) {
       if (String(u._id) === stringId) return u;
     }
-    const cleanPhone = stringId.replace('user-', '') || '9876543210';
+    const cleanPhone = stringId.startsWith('user-') ? stringId.replace('user-', '') : null;
+    if (cleanPhone && memoryUsers.has(cleanPhone)) {
+      return memoryUsers.get(cleanPhone);
+    }
+    const fallbackPhone = cleanPhone && cleanPhone.length === 10 ? cleanPhone : '9876543210';
+    if (memoryUsers.has(fallbackPhone)) {
+      return memoryUsers.get(fallbackPhone);
+    }
     const newUser = {
       _id: stringId,
-      phoneNumber: cleanPhone,
+      phoneNumber: fallbackPhone,
       name: 'Customer',
       bankName: '',
       accountNumber: '',
       monthlySalary: 0,
       salaryDate: 1,
       isOnboarded: false,
-      tutorialStatus: { dashboard: false, transactions: false, recurring: false, reports: false },
+      tutorialStatus: {
+        dashboard: false,
+        transactions: false,
+        recurring: false,
+        reports: false,
+        accounts: false,
+        family: false,
+        planning: false,
+        loans: false,
+      },
       createdAt: new Date().toISOString(),
     };
-    memoryUsers.set(cleanPhone, newUser);
+    memoryUsers.set(fallbackPhone, newUser);
     return newUser;
   },
 
@@ -841,6 +857,65 @@ module.exports = {
       memberBreakdown: Object.values(memberTotals),
       recentTransactions: sharedTxs.slice(0, 10),
     };
+  },
+
+  updateMember: (workspaceId, memberId, userId, updateData) => {
+    const ws = memoryWorkspaces.find((w) => w._id === workspaceId);
+    if (!ws || !ws.members) return null;
+    const member = ws.members.find((m) => m._id === memberId);
+    if (!member) return null;
+
+    if (updateData.name) member.name = updateData.name.trim();
+    if (updateData.phoneNumber) member.phoneNumber = updateData.phoneNumber.trim();
+    if (updateData.role) member.role = updateData.role;
+    if (updateData.relationship) member.relationship = updateData.relationship;
+    if (updateData.email !== undefined) member.email = updateData.email;
+    if (updateData.monthlyBudget !== undefined) member.monthlyBudget = Number(updateData.monthlyBudget) || 0;
+    if (updateData.notes !== undefined) member.notes = updateData.notes;
+
+    saveToDisk();
+    return ws;
+  },
+
+  getMemberPayments: (workspaceId, memberId) => {
+    const ws = memoryWorkspaces.find((w) => w._id === workspaceId);
+    const member = ws?.members?.find((m) => m._id === memberId);
+    const payments = memoryTransactions.filter(
+      (t) => t.workspaceId === workspaceId && (t.familyMemberId === memberId || (member && t.familyPayerId === member.phoneNumber))
+    );
+    const totalPaid = payments.filter((p) => p.type === 'debit').reduce((sum, p) => sum + p.amount, 0);
+    const totalContributed = payments.filter((p) => p.type === 'credit').reduce((sum, p) => sum + p.amount, 0);
+
+    return {
+      member,
+      payments,
+      totalPaid,
+      totalContributed,
+      count: payments.length,
+    };
+  },
+
+  addMemberPayment: (userId, workspaceId, memberId, paymentData) => {
+    const ws = memoryWorkspaces.find((w) => w._id === workspaceId);
+    const member = ws?.members?.find((m) => m._id === memberId);
+    const tx = {
+      _id: 'tx-fam-' + Date.now(),
+      user: String(userId),
+      workspaceId: String(workspaceId),
+      familyMemberId: String(memberId),
+      familyPayerId: member?.phoneNumber || '',
+      type: paymentData.type === 'credit' ? 'credit' : 'debit',
+      amount: Number(paymentData.amount) || 0,
+      category: paymentData.category || 'Family Expense',
+      date: paymentData.date || new Date().toISOString(),
+      reason: paymentData.reason || `Expense for ${member?.name || 'Member'}`,
+      referenceNumber: paymentData.referenceNumber || '',
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+    };
+    memoryTransactions.unshift(tx);
+    saveToDisk();
+    return tx;
   },
 
   // ==========================================

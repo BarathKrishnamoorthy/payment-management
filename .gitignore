@@ -1,5 +1,6 @@
 node_modules
 .env
+.env.*
 dist
 .expo
 .expo-shared
@@ -9,4 +10,6 @@ uploads/*
 !uploads/.gitkeep
 .DS_Store
 Thumbs.db
+backend/data/mongodb/
+backend/data/mongodb/*
 

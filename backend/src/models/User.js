@@ -48,6 +48,10 @@ const userSchema = new mongoose.Schema(
       transactions: { type: Boolean, default: false },
       recurring: { type: Boolean, default: false },
       reports: { type: Boolean, default: false },
+      accounts: { type: Boolean, default: false },
+      family: { type: Boolean, default: false },
+      planning: { type: Boolean, default: false },
+      loans: { type: Boolean, default: false },
     },
     pushToken: {
       type: String,

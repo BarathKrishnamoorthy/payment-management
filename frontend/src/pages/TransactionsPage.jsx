@@ -164,29 +164,20 @@ export const TransactionsPage = ({ initialType = null }) => {
 
   // First-time walkthrough trigger
   useEffect(() => {
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    const isDoneLocally =
-      (phone && localStorage.getItem(`rb_tut_transactions_${phone}`) === 'done') ||
-      (rawId && localStorage.getItem(`rb_tut_transactions_${rawId}`) === 'done') ||
-      localStorage.getItem('rb_tut_transactions_customer') === 'done' ||
-      localStorage.getItem('rb_tut_transactions_done') === 'done';
+    const isDoneLocally = rawId && localStorage.getItem(`rb_tut_transactions_${rawId}`) === 'done';
     const isDoneServer = Boolean(user?.tutorialStatus?.transactions);
 
     if (user && !isDoneLocally && !isDoneServer && !loading) {
       const t = setTimeout(() => setShowTour(true), 400);
       return () => clearTimeout(t);
     }
-  }, [user, loading]);
+  }, [user?.tutorialStatus?.transactions, loading]);
 
   const handleFinishTour = () => {
     setShowTour(false);
-    const phone = (user?.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
     const rawId = user?._id || user?.id || '';
-    if (phone) localStorage.setItem(`rb_tut_transactions_${phone}`, 'done');
     if (rawId) localStorage.setItem(`rb_tut_transactions_${rawId}`, 'done');
-    localStorage.setItem('rb_tut_transactions_customer', 'done');
-    localStorage.setItem('rb_tut_transactions_done', 'done');
     setModuleTutorialDone('transactions');
   };
 
@@ -369,6 +360,16 @@ export const TransactionsPage = ({ initialType = null }) => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Replay Tutorial Button */}
+          <button
+            onClick={() => setShowTour(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-brand-200 bg-white hover:bg-brand-50 text-slate-700 text-xs font-bold shadow-sm transition-all"
+            title="Replay Interactive Tour"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+            <span>Tour</span>
+          </button>
+
           {/* Import Bank Statement Button */}
           <button
             id="txn-import-btn"

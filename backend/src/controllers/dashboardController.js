@@ -6,10 +6,11 @@ const fallbackStore = require('../utils/fallbackStore');
 
 const getDashboardSummary = async (req, res) => {
   try {
-    const userId = req.user ? req.user._id : 'demo-user-id';
+    const rawUserId = req.user ? req.user._id : 'demo-user-id';
+    const userId = mongoose.Types.ObjectId.isValid(rawUserId) ? new mongoose.Types.ObjectId(rawUserId) : rawUserId;
 
     if (mongoose.connection.readyState !== 1) {
-      const fbData = fallbackStore.getDashboardData(userId);
+      const fbData = fallbackStore.getDashboardData(rawUserId);
       return res.status(200).json({
         ...fbData,
         isDbConnected: false,
