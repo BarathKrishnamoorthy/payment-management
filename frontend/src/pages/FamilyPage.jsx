@@ -500,15 +500,21 @@ export const FamilyPage = () => {
               {(familyWorkspace.members || []).map((m) => (
                 <div
                   key={m._id || m.phoneNumber}
-                  className="p-4 rounded-2xl border border-purple-100 bg-purple-50/30 hover:bg-purple-50/60 transition-all flex flex-col justify-between gap-3"
+                  onClick={() => handleOpenDetails(m)}
+                  className="p-4 rounded-2xl border border-purple-100 bg-purple-50/30 hover:bg-purple-50/70 hover:border-purple-300 hover:shadow-md transition-all flex flex-col justify-between gap-3 cursor-pointer group"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-brand-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                      <div className="w-10 h-10 rounded-full bg-brand-600 group-hover:bg-brand-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs transition-colors">
                         {(m.name ? m.name.charAt(0) : 'M').toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-900 truncate">{m.name || 'Family Member'}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-brand-700 truncate transition-colors">
+                            {m.name || 'Family Member'}
+                          </p>
+                          <ChevronRight className="w-3 h-3 text-slate-400 group-hover:text-brand-600 transition-transform group-hover:translate-x-0.5" />
+                        </div>
                         <p className="text-[11px] text-slate-500 truncate">+91 {m.phoneNumber ? m.phoneNumber.slice(-10) : ''}</p>
                         <span className="text-[10px] text-brand-700 font-semibold">{m.relationship || 'Family Member'}</span>
                       </div>
@@ -528,11 +534,14 @@ export const FamilyPage = () => {
                   )}
 
                   {/* Actions Row */}
-                  <div className="flex items-center justify-between pt-2 border-t border-purple-100/60 gap-1.5">
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-between pt-2 border-t border-purple-100/60 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleOpenDetails(m)}
-                        className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-brand-700 hover:bg-purple-100 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDetails(m);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-brand-700 hover:bg-purple-100 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
                         title="View details & payment history"
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -540,8 +549,11 @@ export const FamilyPage = () => {
                       </button>
 
                       <button
-                        onClick={() => handleOpenAddPayment(m)}
-                        className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenAddPayment(m);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
                         title="Record payment for this member"
                       >
                         <PlusCircle className="w-3.5 h-3.5" />
@@ -551,7 +563,10 @@ export const FamilyPage = () => {
 
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleOpenEdit(m)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEdit(m);
+                        }}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-brand-700 hover:bg-white transition-colors"
                         title="Edit member details"
                       >
@@ -560,7 +575,10 @@ export const FamilyPage = () => {
 
                       {m.role !== 'owner' && (
                         <button
-                          onClick={() => handleRemoveMember(m._id, m.name)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveMember(m._id, m.name);
+                          }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                           title="Remove member"
                         >
