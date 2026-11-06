@@ -15,7 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.rbpayment.management",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSCameraUsageDescription": "RB Payment requires camera access to attach receipts and invoices."
       }
     },
@@ -38,9 +40,12 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#7C3AED",
-          "sounds": ["./assets/chime.wav"]
+          "sounds": [
+            "./assets/chime.wav"
+          ]
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "extra": {
       "eas": {
@@ -49,4 +54,3 @@
     }
   }
 }
-
