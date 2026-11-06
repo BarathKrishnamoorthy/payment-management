@@ -1,4 +1,12 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const LIVE_BACKEND_URL = 'https://backend-nine-zeta-zy9fgdrzlm.vercel.app/api';
+
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? LIVE_BACKEND_URL
+    : '/api');
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('rb_token');
