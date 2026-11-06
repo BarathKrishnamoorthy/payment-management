@@ -19,6 +19,54 @@
         },
         "createdAt": "2026-11-04T16:08:43.461Z"
       }
+    ],
+    [
+      "6aedcdce58077b7af3c1f813",
+      {
+        "_id": "6aedcdce58077b7af3c1f813",
+        "phoneNumber": "9876543210",
+        "name": "User",
+        "bankName": "",
+        "accountNumber": "",
+        "monthlySalary": 0,
+        "salaryDate": 1,
+        "isOnboarded": false,
+        "tutorialStatus": {
+          "dashboard": false,
+          "transactions": false,
+          "recurring": false,
+          "reports": false,
+          "accounts": false,
+          "family": false,
+          "planning": false,
+          "loans": false
+        },
+        "createdAt": "2026-11-06T12:53:34.498Z"
+      }
+    ],
+    [
+      "9876543210",
+      {
+        "_id": "6aedcdce58077b7af3c1f813",
+        "phoneNumber": "9876543210",
+        "name": "User",
+        "bankName": "",
+        "accountNumber": "",
+        "monthlySalary": 0,
+        "salaryDate": 1,
+        "isOnboarded": false,
+        "tutorialStatus": {
+          "dashboard": false,
+          "transactions": false,
+          "recurring": false,
+          "reports": false,
+          "accounts": false,
+          "family": false,
+          "planning": false,
+          "loans": false
+        },
+        "createdAt": "2026-11-06T12:53:34.498Z"
+      }
     ]
   ],
   "transactions": [],

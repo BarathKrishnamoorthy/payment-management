@@ -4,15 +4,28 @@ const fallbackStore = require('../utils/fallbackStore');
 
 const isDbReady = () => mongoose.connection.readyState === 1;
 
+const findDbUser = async (userId, phone, selectFields = '') => {
+  if (!isDbReady()) return null;
+  const rawId = String(userId || '');
+  const cleanPhone = (phone || rawId).replace(/[^0-9]/g, '').slice(-10);
+  try {
+    if (mongoose.isValidObjectId(rawId)) {
+      return selectFields ? await User.findById(rawId).select(selectFields) : await User.findById(rawId);
+    } else if (cleanPhone && cleanPhone.length === 10) {
+      return selectFields ? await User.findOne({ phoneNumber: cleanPhone }).select(selectFields) : await User.findOne({ phoneNumber: cleanPhone });
+    }
+  } catch (e) {}
+  return null;
+};
+
 const getProfile = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : 'demo-user-id';
 
-    if (isDbReady()) {
-      const user = await User.findById(userId).select('-otp -otpExpiry');
-      if (user) {
-        return res.status(200).json({ success: true, user });
-      }
+    const user = await findDbUser(userId, req.user?.phoneNumber, '-otp -otpExpiry');
+    if (user) {
+      fallbackStore.cacheUser(user);
+      return res.status(200).json({ success: true, user, isDbConnected: true });
     }
 
     const fallbackUser = fallbackStore.getUserById(userId);
@@ -27,12 +40,8 @@ const updateProfile = async (req, res) => {
     const userId = req.user ? req.user._id : 'demo-user-id';
     const { name, accountNumber, bankName, email } = req.body;
 
-    if (isDbReady()) {
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found.' });
-      }
-
+    const user = await findDbUser(userId, req.user?.phoneNumber);
+    if (user) {
       if (name !== undefined) user.name = name.trim();
       if (accountNumber !== undefined) user.accountNumber = accountNumber.trim();
       if (bankName !== undefined) user.bankName = bankName.trim();
@@ -80,24 +89,22 @@ const updateTutorialStatus = async (req, res) => {
     const { module: modName, completed } = req.body;
     const userId = req.user ? req.user._id : 'demo-user-id';
 
-    if (isDbReady()) {
-      const user = await User.findById(userId);
-      if (user) {
-        if (!user.tutorialStatus) {
-          user.tutorialStatus = {};
-        }
-        user.tutorialStatus[modName] = Boolean(completed);
-        user.markModified('tutorialStatus');
-        await user.save();
+    const user = await findDbUser(userId, req.user?.phoneNumber);
+    if (user) {
+      if (!user.tutorialStatus) {
+        user.tutorialStatus = {};
+      }
+      user.tutorialStatus[modName] = Boolean(completed);
+      user.markModified('tutorialStatus');
+      await user.save();
       fallbackStore.cacheUser(user);
 
-        return res.status(200).json({
-          success: true,
-          message: `Tutorial for ${modName} marked as ${completed ? 'completed' : 'pending'}.`,
-          tutorialStatus: user.tutorialStatus,
-          isDbConnected: true,
-        });
-      }
+      return res.status(200).json({
+        success: true,
+        message: `Tutorial for ${modName} marked as ${completed ? 'completed' : 'pending'}.`,
+        tutorialStatus: user.tutorialStatus,
+        isDbConnected: true,
+      });
     }
 
     const updatedStatus = fallbackStore.updateTutorialStatus(userId, modName, completed);
@@ -118,49 +125,47 @@ const resetTutorialStatus = async (req, res) => {
     const userId = req.user ? req.user._id : 'demo-user-id';
     const targetModule = req.body ? req.body.module : null;
 
-    if (isDbReady()) {
-      const user = await User.findById(userId);
-      if (user) {
-        if (!user.tutorialStatus) {
-          user.tutorialStatus = {};
-        }
-        if (targetModule) {
-          user.tutorialStatus[targetModule] = false;
-        } else {
-          user.tutorialStatus = {
-            dashboard: false,
-            transactions: false,
-            recurring: false,
-            reports: false,
-            accounts: false,
-            family: false,
-            planning: false,
-            loans: false,
-          };
-        }
-        user.markModified('tutorialStatus');
-        await user.save();
+    const user = await findDbUser(userId, req.user?.phoneNumber);
+    if (user) {
+      if (!user.tutorialStatus) {
+        user.tutorialStatus = {};
+      }
+      if (targetModule) {
+        user.tutorialStatus[targetModule] = false;
+      } else {
+        user.tutorialStatus = {
+          dashboard: false,
+          transactions: false,
+          recurring: false,
+          reports: false,
+          accounts: false,
+          family: false,
+          planning: false,
+          loans: false,
+        };
+      }
+      user.markModified('tutorialStatus');
+      await user.save();
       fallbackStore.cacheUser(user);
 
-        return res.status(200).json({
-          success: true,
-          message: targetModule ? `Tutorial for ${targetModule} reset.` : 'All tutorials reset.',
-          tutorialStatus: user.tutorialStatus,
-          isDbConnected: true,
-        });
-      }
+      return res.status(200).json({
+        success: true,
+        message: targetModule ? `Tutorial for ${targetModule} reset.` : 'All tutorials reset.',
+        tutorialStatus: user.tutorialStatus,
+        isDbConnected: true,
+      });
     }
 
-    const updatedStatus = fallbackStore.resetTutorialStatus(userId, targetModule);
+    const resetStatus = fallbackStore.resetTutorialStatus(userId, targetModule);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: targetModule ? `Tutorial for ${targetModule} reset.` : 'All tutorials reset.',
-      tutorialStatus: updatedStatus,
+      tutorialStatus: resetStatus,
       isDbConnected: false,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to reset tutorial.' });
+    res.status(500).json({ success: false, message: 'Failed to reset tutorials: ' + err.message });
   }
 };
 

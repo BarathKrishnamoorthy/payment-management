@@ -195,8 +195,21 @@ const verifyOtp = async (req, res) => {
 // Get current user profile
 const getMe = async (req, res) => {
   try {
+    const rawId = req.user ? req.user._id : 'demo-user-id';
+    const cleanPhone = (req.user?.phoneNumber || String(rawId)).replace(/[^0-9]/g, '').slice(-10);
+
     if (isDbReady()) {
-      const user = await User.findById(req.user._id).select('-otp -otpExpiry');
+      let user = null;
+      try {
+        if (mongoose.isValidObjectId(rawId)) {
+          user = await User.findById(rawId).select('-otp -otpExpiry');
+        } else if (cleanPhone && cleanPhone.length === 10) {
+          user = await User.findOne({ phoneNumber: cleanPhone }).select('-otp -otpExpiry');
+        }
+      } catch (e) {
+        // ignore CastError
+      }
+
       if (user) {
         fallbackStore.cacheUser(user);
         return res.status(200).json({
@@ -207,7 +220,7 @@ const getMe = async (req, res) => {
       }
     }
 
-    const fallbackUser = fallbackStore.getUserById(req.user ? req.user._id : 'demo-user-id');
+    const fallbackUser = fallbackStore.getUserById(rawId);
     res.status(200).json({
       success: true,
       user: fallbackUser,

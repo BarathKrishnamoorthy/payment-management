@@ -14,33 +14,41 @@ const completeOnboarding = async (req, res) => {
     }
 
     if (mongoose.connection.readyState === 1) {
-      const user = await User.findById(req.user._id);
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found.' });
+      let user = null;
+      const rawId = req.user ? req.user._id : null;
+      const cleanPhone = (req.user?.phoneNumber || String(rawId || '')).replace(/[^0-9]/g, '').slice(-10);
+      try {
+        if (mongoose.isValidObjectId(rawId)) {
+          user = await User.findById(rawId);
+        } else if (cleanPhone && cleanPhone.length === 10) {
+          user = await User.findOne({ phoneNumber: cleanPhone });
+        }
+      } catch (e) {}
+
+      if (user) {
+        user.name = name.trim();
+        if (accountNumber !== undefined) user.accountNumber = accountNumber.trim();
+        if (bankName !== undefined) user.bankName = bankName.trim();
+        user.isOnboarded = true;
+
+        await user.save();
+        fallbackStore.cacheUser(user);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Customer onboarding completed successfully!',
+          user: {
+            _id: user._id,
+            id: user._id,
+            phoneNumber: user.phoneNumber,
+            name: user.name,
+            bankName: user.bankName,
+            accountNumber: user.accountNumber,
+            isOnboarded: true,
+            tutorialStatus: user.tutorialStatus,
+          },
+        });
       }
-
-      user.name = name.trim();
-      if (accountNumber !== undefined) user.accountNumber = accountNumber.trim();
-      if (bankName !== undefined) user.bankName = bankName.trim();
-      user.isOnboarded = true;
-
-      await user.save();
-      fallbackStore.cacheUser(user);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Customer onboarding completed successfully!',
-        user: {
-          _id: user._id,
-          id: user._id,
-          phoneNumber: user.phoneNumber,
-          name: user.name,
-          bankName: user.bankName,
-          accountNumber: user.accountNumber,
-          isOnboarded: true,
-          tutorialStatus: user.tutorialStatus,
-        },
-      });
     }
 
     // In-memory fallback
