@@ -25,6 +25,7 @@ const completeOnboarding = async (req, res) => {
       user.isOnboarded = true;
 
       await user.save();
+      fallbackStore.cacheUser(user);
 
       return res.status(200).json({
         success: true,

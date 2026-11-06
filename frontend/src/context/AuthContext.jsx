@@ -135,9 +135,11 @@ export const AuthProvider = ({ children }) => {
 
   const completeOnboarding = async (data) => {
     const res = await api.completeOnboarding(data);
+    const resolvedName = res.user?.name && res.user.name !== 'Customer' ? res.user.name : (data.name?.trim() || res.user?.name);
     if (res.success && res.user) {
       const updatedUser = {
         ...res.user,
+        name: resolvedName,
         isOnboarded: true,
       };
       setUser(updatedUser);
@@ -148,10 +150,12 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (data) => {
     const res = await api.updateProfile(data);
+    const resolvedName = res.user?.name && res.user.name !== 'Customer' ? res.user.name : (data.name?.trim() || res.user?.name);
     if (res.success && res.user) {
       const updatedUser = {
         ...res.user,
-        isOnboarded: checkCustomerOnboarded(res.user),
+        name: resolvedName,
+        isOnboarded: checkCustomerOnboarded({ ...res.user, name: resolvedName }),
       };
       setUser(updatedUser);
       localStorage.setItem('rb_user', JSON.stringify(updatedUser));

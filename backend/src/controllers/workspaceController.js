@@ -12,8 +12,17 @@ const getWorkspaces = async (req, res) => {
     const phone = req.user?.phoneNumber || '';
 
     if (!isDbReady()) {
-      const workspaces = fallbackStore.getWorkspaces(userId, phone);
-      return res.status(200).json({ success: true, workspaces, isDbConnected: false });
+      let list = fallbackStore.getWorkspaces(userId, phone);
+      if (req.user?.name && req.user.name !== 'Customer') {
+        list.forEach((w) => {
+          w.members.forEach((m) => {
+            if (m.role === 'owner' && (!m.name || m.name === 'Customer' || m.name.startsWith('Customer ') || m.name === 'Family Head')) {
+              m.name = req.user.name;
+            }
+          });
+        });
+      }
+      return res.status(200).json({ success: true, workspaces: list, isDbConnected: false });
     }
 
     // Find workspaces where user is owner or listed in members
@@ -25,6 +34,22 @@ const getWorkspaces = async (req, res) => {
       ],
       status: 'active',
     });
+
+    // Auto-correct any legacy "Customer" or generic owner member names in user's workspaces
+    if (req.user?.name && req.user.name !== 'Customer') {
+      for (const w of workspaces) {
+        let changed = false;
+        w.members.forEach((m) => {
+          if (m.role === 'owner' && (!m.name || m.name === 'Customer' || m.name.startsWith('Customer ') || m.name === 'Family Head')) {
+            m.name = req.user.name;
+            changed = true;
+          }
+        });
+        if (changed) {
+          await w.save().catch(() => {});
+        }
+      }
+    }
 
     // Ensure user always has a Personal Workspace
     let personalWs = workspaces.find((w) => w.type === 'personal');
@@ -61,8 +86,11 @@ const createFamilyWorkspace = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Family group name is required.' });
     }
 
-    const phone = req.user?.phoneNumber || '';
-    const ownerName = req.user?.name || 'Family Head';
+    const phone = req.user?.phoneNumber || req.body.ownerPhone || '';
+    let ownerName = req.body.ownerName || req.user?.name;
+    if (!ownerName || ownerName === 'Customer') {
+      ownerName = req.user?.name && req.user.name !== 'Customer' ? req.user.name : (req.body.ownerName && req.body.ownerName !== 'Customer' ? req.body.ownerName : 'Family Head');
+    }
 
     if (!isDbReady()) {
       const ws = fallbackStore.createFamilyWorkspace(userId, {

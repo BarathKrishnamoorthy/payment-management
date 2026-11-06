@@ -12,10 +12,19 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || 'rb_payment_management_jwt_secret_key_2026'
-      );
+      const primarySecret = process.env.JWT_SECRET || 'rb_payment_management_jwt_secret_super_secure_key_2026';
+      let decoded;
+      try {
+        decoded = jwt.verify(token, primarySecret);
+      } catch (e) {
+        // Fallback verification for tokens signed with legacy secret variant
+        decoded = jwt.verify(token, 'rb_payment_management_jwt_secret_key_2026');
+      }
+
+      if (mongoose.connection.readyState !== 1) {
+        const { connectDB } = require('../config/db');
+        await connectDB();
+      }
 
       if (mongoose.connection.readyState === 1) {
         req.user = await User.findById(decoded.id).select('-otp -otpExpiry');

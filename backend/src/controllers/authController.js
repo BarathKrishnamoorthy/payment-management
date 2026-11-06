@@ -124,7 +124,9 @@ const verifyOtp = async (req, res) => {
         user.isOnboarded = true;
       }
       await user.save();
+      fallbackStore.cacheUser(user);
 
+      fallbackStore.cacheUser(user);
       const token = generateToken(user._id);
 
       return res.status(200).json({
@@ -196,6 +198,7 @@ const getMe = async (req, res) => {
     if (isDbReady()) {
       const user = await User.findById(req.user._id).select('-otp -otpExpiry');
       if (user) {
+        fallbackStore.cacheUser(user);
         return res.status(200).json({
           success: true,
           user,
@@ -249,6 +252,7 @@ const firebaseLogin = async (req, res) => {
         await user.save();
       }
 
+      fallbackStore.cacheUser(user);
       const token = generateToken(user._id);
 
       return res.status(200).json({

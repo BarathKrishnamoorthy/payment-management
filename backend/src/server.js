@@ -72,21 +72,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Resilient Database Connection Middleware (Zero-Downtime fallback if Atlas is pending whitelist)
-let isConnecting = false;
-let lastAttempt = 0;
-
+// Database Connection Middleware (Ensures MongoDB is ready before handling requests)
 app.use(async (req, res, next) => {
-  const ready = require('mongoose').connection.readyState === 1;
-  if (!ready && !isConnecting && Date.now() - lastAttempt > 5000) {
-    lastAttempt = Date.now();
-    isConnecting = true;
+  if (require('mongoose').connection.readyState !== 1) {
     try {
       await connectDB();
     } catch (e) {
-      // ignore
-    } finally {
-      isConnecting = false;
+      console.warn('[Server] DB connect attempt failed:', e.message);
     }
   }
 

@@ -123,13 +123,37 @@ module.exports = {
   },
 
   // Customer Management - Strict Customer Isolation
+  cacheUser: (userData) => {
+    if (!userData) return null;
+    const stringId = String(userData._id || userData.id || '');
+    const cleanPhone = (userData.phoneNumber || '').replace(/[^0-9]/g, '').slice(-10);
+
+    const userObj = {
+      _id: stringId || ('user-' + (cleanPhone || 'local')),
+      phoneNumber: cleanPhone || userData.phoneNumber || '',
+      name: userData.name && userData.name !== 'Customer' ? userData.name : (userData.name || 'User'),
+      bankName: userData.bankName || '',
+      accountNumber: userData.accountNumber || '',
+      monthlySalary: userData.monthlySalary || 0,
+      salaryDate: userData.salaryDate || 1,
+      isOnboarded: Boolean(userData.isOnboarded || (userData.name && userData.name !== 'Customer' && !userData.name.startsWith('Customer '))),
+      tutorialStatus: userData.tutorialStatus || { dashboard: false, transactions: false, recurring: false, reports: false },
+      createdAt: userData.createdAt || new Date().toISOString(),
+    };
+
+    if (stringId) memoryUsers.set(stringId, userObj);
+    if (cleanPhone) memoryUsers.set(cleanPhone, userObj);
+    saveToDisk();
+    return userObj;
+  },
+
   getOrCreateUser: (phone) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
     if (!memoryUsers.has(cleanPhone)) {
       const newUser = {
         _id: 'user-' + cleanPhone,
         phoneNumber: cleanPhone,
-        name: cleanPhone === '9876543210' ? 'Demo Customer' : 'Customer ' + cleanPhone.slice(-4),
+        name: cleanPhone === '9876543210' ? 'Demo Customer' : 'User ' + cleanPhone.slice(-4),
         bankName: '',
         accountNumber: '',
         monthlySalary: 0,
@@ -139,27 +163,56 @@ module.exports = {
         createdAt: new Date().toISOString(),
       };
       memoryUsers.set(cleanPhone, newUser);
+      memoryUsers.set(newUser._id, newUser);
     }
     return memoryUsers.get(cleanPhone);
   },
 
   getUserById: (id) => {
-    const stringId = String(id);
+    const stringId = String(id || '');
+
+    // 1. Direct match in Map
+    if (memoryUsers.has(stringId)) {
+      return memoryUsers.get(stringId);
+    }
+
+    // 2. Direct match by _id on values
     for (const u of memoryUsers.values()) {
-      if (String(u._id) === stringId) return u;
+      if (String(u._id) === stringId) {
+        memoryUsers.set(stringId, u);
+        return u;
+      }
     }
-    const cleanPhone = stringId.startsWith('user-') ? stringId.replace('user-', '') : null;
-    if (cleanPhone && memoryUsers.has(cleanPhone)) {
-      return memoryUsers.get(cleanPhone);
+
+    // 3. Match by phone number
+    const cleanPhone = stringId.replace(/[^0-9]/g, '').slice(-10);
+    if (cleanPhone && cleanPhone.length === 10 && memoryUsers.has(cleanPhone)) {
+      const u = memoryUsers.get(cleanPhone);
+      memoryUsers.set(stringId, u);
+      return u;
     }
+
+    // 4. Link unknown MongoDB ObjectId to existing user with non-generic custom name
+    const knownUsers = Array.from(new Set(memoryUsers.values())).filter(
+      (u) => u.name && u.name !== 'Customer' && !u.name.startsWith('Customer ')
+    );
+    if (knownUsers.length >= 1) {
+      const existing = knownUsers[0];
+      memoryUsers.set(stringId, existing);
+      return existing;
+    }
+
     const fallbackPhone = cleanPhone && cleanPhone.length === 10 ? cleanPhone : '9876543210';
     if (memoryUsers.has(fallbackPhone)) {
-      return memoryUsers.get(fallbackPhone);
+      const u = memoryUsers.get(fallbackPhone);
+      memoryUsers.set(stringId, u);
+      return u;
     }
+
     const newUser = {
       _id: stringId,
       phoneNumber: fallbackPhone,
-      name: 'Customer',
+      name: 'User',
       bankName: '',
       accountNumber: '',
       monthlySalary: 0,
@@ -177,7 +230,8 @@ module.exports = {
       },
       createdAt: new Date().toISOString(),
     };
-    memoryUsers.set(fallbackPhone, newUser);
+    memoryUsers.set(stringId, newUser);
+    if (fallbackPhone) memoryUsers.set(fallbackPhone, newUser);
     return newUser;
   },
 
@@ -187,6 +241,9 @@ module.exports = {
       updates.isOnboarded = true;
     }
     Object.assign(user, updates);
+    memoryUsers.set(String(id), user);
+    if (user._id) memoryUsers.set(String(user._id), user);
+    if (user.phoneNumber) memoryUsers.set(user.phoneNumber, user);
     saveToDisk();
     return user;
   },

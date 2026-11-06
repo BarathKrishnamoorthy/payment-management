@@ -39,6 +39,7 @@ const updateProfile = async (req, res) => {
       if (email !== undefined) user.email = email.trim();
 
       await user.save();
+      fallbackStore.cacheUser(user);
 
       return res.status(200).json({
         success: true,
@@ -88,6 +89,7 @@ const updateTutorialStatus = async (req, res) => {
         user.tutorialStatus[modName] = Boolean(completed);
         user.markModified('tutorialStatus');
         await user.save();
+      fallbackStore.cacheUser(user);
 
         return res.status(200).json({
           success: true,
@@ -138,6 +140,7 @@ const resetTutorialStatus = async (req, res) => {
         }
         user.markModified('tutorialStatus');
         await user.save();
+      fallbackStore.cacheUser(user);
 
         return res.status(200).json({
           success: true,

@@ -20,7 +20,8 @@ import {
   FileText,
   X,
   CreditCard,
-  RotateCcw
+  RotateCcw,
+  ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
@@ -170,7 +171,11 @@ export const FamilyPage = () => {
 
     try {
       setCreating(true);
-      const res = await api.createFamilyWorkspace({ name: familyName.trim() });
+      const res = await api.createFamilyWorkspace({
+        name: familyName.trim(),
+        ownerName: user?.name && user.name !== 'Customer' ? user.name : undefined,
+        ownerPhone: user?.phoneNumber || undefined,
+      });
       if (res && res.success) {
         setShowCreateModal(false);
         setFamilyName('');
@@ -497,98 +502,110 @@ export const FamilyPage = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(familyWorkspace.members || []).map((m) => (
-                <div
-                  key={m._id || m.phoneNumber}
-                  onClick={() => handleOpenDetails(m)}
-                  className="p-4 rounded-2xl border border-purple-100 bg-purple-50/30 hover:bg-purple-50/70 hover:border-purple-300 hover:shadow-md transition-all flex flex-col justify-between gap-3 cursor-pointer group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-brand-600 group-hover:bg-brand-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs transition-colors">
-                        {(m.name ? m.name.charAt(0) : 'M').toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-slate-900 group-hover:text-brand-700 truncate transition-colors">
-                            {m.name || 'Family Member'}
-                          </p>
-                          <ChevronRight className="w-3 h-3 text-slate-400 group-hover:text-brand-600 transition-transform group-hover:translate-x-0.5" />
+              {(familyWorkspace.members || []).map((m) => {
+                const isOwner = m.role === 'owner';
+                const isSelf = isOwner || m.user === (user?._id || user?.id) || (m.phoneNumber && user?.phoneNumber && m.phoneNumber.slice(-10) === user.phoneNumber.slice(-10));
+                const isGeneric = !m.name || m.name === 'Customer' || m.name.startsWith('Customer ') || m.name === 'Family Head' || m.name === 'Owner';
+                const memberDisplayName = (isSelf && user?.name && user.name !== 'Customer')
+                  ? user.name
+                  : (isGeneric && isOwner && user?.name && user.name !== 'Customer'
+                      ? user.name
+                      : (m.name || (isOwner ? (user?.name || 'Owner') : 'Family Member')));
+                const memberInitial = (memberDisplayName.charAt(0) || 'M').toUpperCase();
+
+                return (
+                  <div
+                    key={m._id || m.phoneNumber}
+                    onClick={() => handleOpenDetails({ ...m, name: memberDisplayName })}
+                    className="p-4 rounded-2xl border border-purple-100 bg-purple-50/30 hover:bg-purple-50/70 hover:border-purple-300 hover:shadow-md transition-all flex flex-col justify-between gap-3 cursor-pointer group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-brand-600 group-hover:bg-brand-700 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-2xs transition-colors">
+                          {memberInitial}
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">+91 {m.phoneNumber ? m.phoneNumber.slice(-10) : ''}</p>
-                        <span className="text-[10px] text-brand-700 font-semibold">{m.relationship || 'Family Member'}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-bold text-slate-900 group-hover:text-brand-700 truncate transition-colors">
+                              {memberDisplayName}
+                            </p>
+                            <ChevronRight className="w-3 h-3 text-slate-400 group-hover:text-brand-600 transition-transform group-hover:translate-x-0.5" />
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate">+91 {m.phoneNumber ? m.phoneNumber.slice(-10) : ''}</p>
+                          <span className="text-[10px] text-brand-700 font-semibold">{m.relationship || 'Family Member'}</span>
+                        </div>
                       </div>
+
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-100 text-brand-700 shrink-0">
+                        {m.role}
+                      </span>
                     </div>
 
-                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-purple-100 text-brand-700 shrink-0">
-                      {m.role}
-                    </span>
-                  </div>
+                    {/* Monthly Budget Badge if set */}
+                    {m.monthlyBudget > 0 && (
+                      <div className="px-2.5 py-1 rounded-xl bg-white border border-purple-100 text-[11px] text-slate-600 flex items-center justify-between">
+                        <span className="text-slate-400">Monthly Budget:</span>
+                        <span className="font-bold text-brand-700">₹{Number(m.monthlyBudget).toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
 
-                  {/* Monthly Budget Badge if set */}
-                  {m.monthlyBudget > 0 && (
-                    <div className="px-2.5 py-1 rounded-xl bg-white border border-purple-100 text-[11px] text-slate-600 flex items-center justify-between">
-                      <span className="text-slate-400">Monthly Budget:</span>
-                      <span className="font-bold text-brand-700">₹{Number(m.monthlyBudget).toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-
-                  {/* Actions Row */}
-                  <div className="flex items-center justify-between pt-2 border-t border-purple-100/60 gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetails(m);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-brand-700 hover:bg-purple-100 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
-                        title="View details & payment history"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>History</span>
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenAddPayment(m);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
-                        title="Record payment for this member"
-                      >
-                        <PlusCircle className="w-3.5 h-3.5" />
-                        <span>Pay</span>
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEdit(m);
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand-700 hover:bg-white transition-colors"
-                        title="Edit member details"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-
-                      {m.role !== 'owner' && (
+                    {/* Actions Row */}
+                    <div className="flex items-center justify-between pt-2 border-t border-purple-100/60 gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleRemoveMember(m._id, m.name);
+                            handleOpenDetails({ ...m, name: memberDisplayName });
                           }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Remove member"
+                          className="px-2.5 py-1 rounded-lg bg-white border border-purple-200 text-brand-700 hover:bg-purple-100 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                          title="View details & payment history"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>History</span>
                         </button>
-                      )}
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAddPayment({ ...m, name: memberDisplayName });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-brand-600 text-white hover:bg-brand-700 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-2xs"
+                          title="Record payment for this member"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          <span>Pay</span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit({ ...m, name: memberDisplayName });
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-brand-700 hover:bg-white transition-colors"
+                          title="Edit member details"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {m.role !== 'owner' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveMember(m._id, m.name);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Remove member"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -604,11 +621,14 @@ export const FamilyPage = () => {
                 {familySummary.memberBreakdown.map((mb) => {
                   const total = familySummary.totalSharedExpense || 1;
                   const pct = Math.round(((mb.paid || 0) / total) * 100);
+                  const isMbSelf = mb.role === 'owner' || (mb.phoneNumber && user?.phoneNumber && mb.phoneNumber.slice(-10) === user.phoneNumber.slice(-10));
+                  const isMbGeneric = !mb.name || mb.name === 'Customer' || mb.name.startsWith('Customer ') || mb.name === 'Family Head' || mb.name === 'Owner';
+                  const mbDisplayName = (isMbSelf && user?.name && user.name !== 'Customer') ? user.name : (isMbGeneric && isMbSelf && user?.name ? user.name : (mb.name || 'Member'));
                   return (
                     <div key={mb.phoneNumber} className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1.5">
                         <span className="flex items-center gap-2">
-                          <span>{mb.name}</span>
+                          <span>{mbDisplayName}</span>
                           <span className="text-[10px] text-slate-400 font-normal">({mb.relationship || mb.role})</span>
                         </span>
                         <span>₹{Number(mb.paid || 0).toLocaleString('en-IN')} ({pct}%)</span>

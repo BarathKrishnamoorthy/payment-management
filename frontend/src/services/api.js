@@ -28,9 +28,15 @@ const handleResponse = async (res) => {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401) {
-      localStorage.removeItem('rb_token');
-      localStorage.removeItem('rb_user');
-      window.dispatchEvent(new Event('rb_unauthorized'));
+      // Guard against accidental logout: only clear session on core auth verification failure,
+      // never on background polling (notifications, status checks)
+      const isCoreAuthCheck = res.url.includes('/auth/me');
+      const isBackgroundCall = res.url.includes('/notifications') || res.url.includes('/tutorial-status');
+      if (isCoreAuthCheck && !isBackgroundCall) {
+        localStorage.removeItem('rb_token');
+        localStorage.removeItem('rb_user');
+        window.dispatchEvent(new Event('rb_unauthorized'));
+      }
     }
     throw new Error(data.message || `Request failed with status ${res.status}`);
   }

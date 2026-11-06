@@ -29,6 +29,10 @@ const checkAndSendRecurringNotifications = async (userId = null) => {
     let createdCount = 0;
 
     for (const payment of recurringPayments) {
+      const paymentUser = payment.user;
+      const paymentUserId = paymentUser?._id || paymentUser;
+      if (!paymentUserId) continue;
+
       const nextDue = new Date(payment.nextDueDate);
       nextDue.setHours(0, 0, 0, 0);
 
@@ -38,7 +42,7 @@ const checkAndSendRecurringNotifications = async (userId = null) => {
       if (isDueToday) {
         // Check if notification for today already exists for this payment
         const existing = await Notification.findOne({
-          user: payment.user._id,
+          user: paymentUserId,
           relatedId: payment._id,
           type: 'due_today',
           createdAt: { $gte: today, $lte: endOfToday },
@@ -46,7 +50,7 @@ const checkAndSendRecurringNotifications = async (userId = null) => {
 
         if (!existing) {
           await Notification.create({
-            user: payment.user._id,
+            user: paymentUserId,
             title: `Payment Due Today: ${payment.title}`,
             message: `Your ${payment.paymentType} payment of ₹${payment.amount.toLocaleString()} for "${payment.title}" is due today. Please settle it to avoid late fees.`,
             type: 'due_today',
@@ -61,7 +65,7 @@ const checkAndSendRecurringNotifications = async (userId = null) => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         const existing = await Notification.findOne({
-          user: payment.user._id,
+          user: paymentUserId,
           relatedId: payment._id,
           type: 'upcoming_due',
           createdAt: { $gte: today, $lte: endOfToday },
@@ -69,7 +73,7 @@ const checkAndSendRecurringNotifications = async (userId = null) => {
 
         if (!existing) {
           await Notification.create({
-            user: payment.user._id,
+            user: paymentUserId,
             title: `Upcoming Payment: ${payment.title}`,
             message: `Reminder: Your ${payment.paymentType} payment of ₹${payment.amount.toLocaleString()} is due in ${diffDays} day${diffDays > 1 ? 's' : ''} on ${payment.nextDueDate.toLocaleDateString()}.`,
             type: 'upcoming_due',
