@@ -7,7 +7,6 @@ import { NotificationDrawer } from './components/common/NotificationDrawer';
 import { ModuleGuidanceModal } from './components/guidance/ModuleGuidanceModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AuthPage } from './pages/AuthPage';
-import { OnboardingPage } from './pages/OnboardingPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { RecurringPage } from './pages/RecurringPage';
