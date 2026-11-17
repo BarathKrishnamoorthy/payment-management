@@ -113,11 +113,10 @@ export default function App() {
       const res = await MobileAPI.verifyOtp(phoneInput, otpInput);
       setToken(res.token);
       setAuthToken(res.token);
-      setUser(res.user);
-      if (res.user?.isOnboarded) {
-        loadDashboardData();
-        checkModuleTutorial(res.user, 'dashboard');
-      }
+      const authenticatedUser = { ...res.user, isOnboarded: true };
+      setUser(authenticatedUser);
+      loadDashboardData();
+      checkModuleTutorial(authenticatedUser, 'dashboard');
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Invalid OTP code.');
     } finally {
@@ -487,129 +486,6 @@ export default function App() {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
-        </ScrollView>
-
-        {/* Server Configuration Modal */}
-        <Modal visible={showServerModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Configure Backend API Server</Text>
-              <Text style={styles.cardSub}>
-                Connect to your live cloud server or local Wi-Fi:
-              </Text>
-
-              <TextInput
-                style={[styles.textInput, { marginTop: 12, fontSize: 13 }]}
-                value={inputServerUrl}
-                onChangeText={setInputServerUrl}
-                placeholder="https://your-backend.onrender.com/api"
-                autoCapitalize="none"
-              />
-
-              {/* Quick Presets */}
-              <View style={{ marginTop: 12, gap: 8 }}>
-                <TouchableOpacity
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: '#FAF5FF', borderWidth: 1, borderColor: '#E9D5FF' }}
-                  onPress={() => setInputServerUrl(DEFAULT_LIVE_API_URL)}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: Colors.primary }}>
-                    ☁️ Use Live Cloud: {DEFAULT_LIVE_API_URL}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={{ padding: 10, borderRadius: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }}
-                  onPress={() => setInputServerUrl(LOCAL_WIFI_API_URL)}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: 'bold', color: Colors.textSecondary }}>
-                    📡 Use Local Machine Wi-Fi: {LOCAL_WIFI_API_URL}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.modalBtnRow}>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
-                  onPress={() => setShowServerModal(false)}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveBtn}
-                  onPress={() => {
-                    const trimmed = inputServerUrl.trim();
-                    setApiUrl(trimmed);
-                    setCurrentServerUrl(trimmed);
-                    setShowServerModal(false);
-                    Alert.alert('Server Updated', `Now connecting to: ${trimmed}`);
-                  }}
-                >
-                  <Text style={styles.saveBtnText}>Save Server</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      </SafeAreaView>
-    );
-  }
-
-  // ====================================================
-  // SCREEN 2: FIRST-TIME ONBOARDING
-  // ====================================================
-  if (!user.isOnboarded) {
-    return (
-      <SafeAreaView style={styles.authContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#4C1D95" />
-        <ScrollView contentContainerStyle={styles.authScroll}>
-          <Text style={styles.onboardBadge}>FIRST-TIME CUSTOMER SETUP</Text>
-          <Text style={styles.authTitle}>Complete Your Profile</Text>
-          <Text style={styles.authSubtitle}>Please enter your customer identity details</Text>
-
-          <View style={styles.authCard}>
-            <Text style={styles.fieldLabel}>Customer Full Name (Required) *</Text>
-            <TextInput
-              style={styles.textInput}
-              value={onboardName}
-              onChangeText={setOnboardName}
-              placeholder="e.g. Rajesh Balasubramanian"
-            />
-
-            <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Phone Number (Auto-Filled)</Text>
-            <TextInput
-              style={[styles.textInput, styles.disabledInput]}
-              value={`+91 ${user.phoneNumber}`}
-              editable={false}
-            />
-
-            <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Primary Bank Name (Optional)</Text>
-            <TextInput
-              style={styles.textInput}
-              value={onboardBank}
-              onChangeText={setOnboardBank}
-              placeholder="e.g. HDFC Bank, SBI, ICICI"
-            />
-
-            <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Account Number (Optional)</Text>
-            <TextInput
-              style={styles.textInput}
-              value={onboardAccount}
-              onChangeText={setOnboardAccount}
-              placeholder="e.g. 50100492817291"
-            />
-
-            <TouchableOpacity
-              style={[styles.primaryBtn, { marginTop: 18 }]}
-              onPress={handleCompleteOnboarding}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={Colors.white} />
-              ) : (
-                <Text style={styles.primaryBtnText}>Save Profile & Enter App →</Text>
-              )}
-            </TouchableOpacity>
           </View>
         </ScrollView>
 

@@ -109,27 +109,18 @@ export const AuthPage = ({ onAuthSuccess }) => {
 
   const handleSuccessfulVerification = (res, rawPhone) => {
     const cleanPhone = (res.user?.phoneNumber || rawPhone || phoneNumber).replace(/[^0-9]/g, '').slice(-10);
-    const hasCustomName = Boolean(
-      res.user?.name &&
-      res.user.name.trim() !== '' &&
-      !res.user.name.startsWith('Customer ') &&
-      res.user.name !== 'Customer'
-    );
-
-    const isAlreadyOnboarded = Boolean(res.user?.isOnboarded === true || hasCustomName);
 
     const finalUser = {
       ...res.user,
       name: res.user?.name || `Customer ${cleanPhone.slice(-4)}`,
-      isOnboarded: isAlreadyOnboarded,
+      isOnboarded: true,
     };
 
     login(res.token, finalUser);
     if (onAuthSuccess) {
-      onAuthSuccess(!isAlreadyOnboarded);
-    } else {
-      navigate(isAlreadyOnboarded ? '/dashboard' : '/onboarding');
+      onAuthSuccess();
     }
+    navigate('/dashboard', { replace: true });
   };
 
   const handleVerifyOtp = async () => {

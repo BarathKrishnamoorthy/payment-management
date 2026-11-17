@@ -37,23 +37,12 @@ const LoadingScreen = () => (
 
 // Public Route Guard (Login / Auth)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, isOnboarded, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) return <LoadingScreen />;
   if (isAuthenticated) {
-    if (!isOnboarded) return <Navigate to="/onboarding" replace />;
     return <Navigate to="/dashboard" replace />;
   }
-  return children;
-};
-
-// Onboarding Route Guard (First-time customers)
-const OnboardingRoute = ({ children }) => {
-  const { isAuthenticated, isOnboarded, loading } = useAuth();
-
-  if (loading) return <LoadingScreen />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (isOnboarded) return <Navigate to="/dashboard" replace />;
   return children;
 };
 
@@ -182,15 +171,12 @@ const AppLayout = ({ children, activeModule }) => {
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, moduleKey }) => {
-  const { isAuthenticated, isOnboarded, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-  if (!isOnboarded) {
-    return <Navigate to="/onboarding" replace />;
   }
 
   return (
@@ -215,15 +201,8 @@ export function App() {
         }
       />
 
-      {/* 2. Customer Onboarding Route */}
-      <Route
-        path="/onboarding"
-        element={
-          <OnboardingRoute>
-            <OnboardingPage onComplete={() => navigate('/dashboard')} />
-          </OnboardingRoute>
-        }
-      />
+      {/* 2. Customer Onboarding Route - Redirects straight to Dashboard */}
+      <Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
 
       {/* 3. Root redirect */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

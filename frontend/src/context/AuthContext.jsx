@@ -3,21 +3,7 @@ import { api } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const checkCustomerOnboarded = (u) => {
-  if (!u) return false;
-  // If backend says user is onboarded, they are onboarded
-  if (u.isOnboarded === true) return true;
-  // If user has a valid custom name (not empty, not default 'Customer')
-  if (
-    u.name &&
-    u.name.trim() !== '' &&
-    !u.name.startsWith('Customer ') &&
-    u.name !== 'Customer'
-  ) {
-    return true;
-  }
-  return false;
-};
+const checkCustomerOnboarded = () => true;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -80,27 +66,10 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (authToken, userData) => {
-    // Clear any previous user's cached ledger/dashboard data to ensure strict user isolation
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (
-        key &&
-        (key.startsWith('rb_dash_') ||
-          key.startsWith('rb_txns_') ||
-          key.startsWith('rb_rec_') ||
-          key.startsWith('rb_tut_'))
-      ) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
-
     setToken(authToken);
-    const isOnboarded = checkCustomerOnboarded(userData);
     const mergedUser = {
       ...userData,
-      isOnboarded,
+      isOnboarded: true,
       tutorialStatus: userData?.tutorialStatus || {},
     };
 
@@ -114,23 +83,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('rb_token');
     localStorage.removeItem('rb_user');
-
-    // Clean up all cached session keys
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (
-        key &&
-        (key.startsWith('rb_dash_') ||
-          key.startsWith('rb_txns_') ||
-          key.startsWith('rb_rec_') ||
-          key.startsWith('rb_customer_') ||
-          key.startsWith('rb_tut_'))
-      ) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((k) => localStorage.removeItem(k));
   };
 
   const completeOnboarding = async (data) => {

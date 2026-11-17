@@ -232,7 +232,7 @@ export const RecurringPage = () => {
         let updatedList;
         if (isEditing && itemId) {
           updatedList = prevList.map((r) =>
-            r._id === itemId || r.id === itemId
+            String(r._id) === String(itemId) || String(r.id) === String(itemId)
               ? {
                   ...r,
                   ...payload,

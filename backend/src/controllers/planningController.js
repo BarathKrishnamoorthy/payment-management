@@ -84,9 +84,9 @@ const getBudgets = async (req, res) => {
 const createBudget = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : 'demo-user-id';
-    const { category, amount, period, workspaceId } = req.body;
+    const { category, amount, monthlyLimit, period, workspaceId } = req.body;
 
-    const budgetAmount = Number(amount);
+    const budgetAmount = Number(amount || monthlyLimit);
     if (!category || !budgetAmount || budgetAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Category and positive budget amount are required.' });
     }
@@ -187,11 +187,12 @@ const getSavingsGoals = async (req, res) => {
 const createSavingsGoal = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : 'demo-user-id';
-    const { goalName, targetAmount, initialDeposit, category, targetDate, notes, workspaceId } = req.body;
+    const { goalName, name, targetAmount, initialDeposit, category, targetDate, notes, workspaceId } = req.body;
 
+    const title = (goalName || name || '').trim();
     const target = Number(targetAmount);
-    if (!goalName || !target || target <= 0) {
-      return res.status(400).json({ success: false, message: 'Goal name and target amount are required.' });
+    if (!title || !target || target <= 0) {
+      return res.status(400).json({ success: false, message: 'Goal name and positive target amount are required.' });
     }
 
     const initDep = Number(initialDeposit) || 0;
@@ -200,7 +201,7 @@ const createSavingsGoal = async (req, res) => {
       const goal = fallbackStore.createSavingsGoal({
         user: userId,
         workspaceId: workspaceId || 'personal',
-        goalName: goalName.trim(),
+        goalName: title,
         targetAmount: target,
         currentAmount: initDep,
         category: category || 'Other',
@@ -214,7 +215,7 @@ const createSavingsGoal = async (req, res) => {
     const goal = await SavingsGoal.create({
       user: userId,
       workspaceId: workspaceId || 'personal',
-      goalName: goalName.trim(),
+      name: title,
       targetAmount: target,
       currentAmount: initDep,
       category: category || 'Other',

@@ -530,7 +530,9 @@ module.exports = {
   },
 
   updateRecurring: (id, userId, data) => {
-    const item = memoryRecurring.find((r) => String(r._id) === String(id) && String(r.user) === String(userId));
+    const item = memoryRecurring.find(
+      (r) => String(r._id) === String(id) && (String(r.user) === String(userId) || !userId || userId === 'demo-user-id' || !r.user)
+    );
     if (item) {
       if (data.title) item.title = data.title.trim();
       if (data.paymentType) item.paymentType = data.paymentType;
@@ -540,8 +542,10 @@ module.exports = {
       if (data.status) item.status = data.status;
       if (data.autoCreateDebit !== undefined) item.autoCreateDebit = Boolean(data.autoCreateDebit);
       if (data.dueDate) {
-        item.dueDate = data.dueDate;
-        item.nextDueDate = data.dueDate;
+        const parsed = parseDateSafe(data.dueDate);
+        const isoDue = parsed.toISOString();
+        item.dueDate = isoDue;
+        item.nextDueDate = isoDue;
       }
       saveToDisk();
       return item;

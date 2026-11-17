@@ -24,7 +24,10 @@ import {
   Info,
   CheckCircle2,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ArrowLeftRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -63,8 +66,8 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
   // Recurring Payment Details Modal
   const [selectedRecurringDetail, setSelectedRecurringDetail] = useState(null);
 
-  // Recurring Filter: 'due_soon' (≤ 3 days before due date - default) or 'all'
-  const [recurringFilter, setRecurringFilter] = useState('due_soon');
+  // Recurring Filter: 'all' (default so user sees all upcoming commitments) or 'due_soon' (≤ 3 days)
+  const [recurringFilter, setRecurringFilter] = useState('all');
   // Local set of dismissed/hidden item IDs for this session
   const [dismissedItemIds, setDismissedItemIds] = useState([]);
 
@@ -912,6 +915,103 @@ export const DashboardPage = ({ setActivePage, onTriggerAddTxn, onTriggerAddRecu
             })
           )}
         </div>
+      </div>
+
+      {/* 4th Row: Recent Transactions on Dashboard */}
+      <div className="p-6 rounded-3xl bg-white border border-purple-100 shadow-purple-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-purple-50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-100/90 text-brand-700 flex items-center justify-center font-bold">
+              <ArrowLeftRight className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Recent Transactions
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">
+                Latest credits and debits from your cashflow ledger
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setActivePage('transactions')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-brand-700 text-xs font-bold transition-all shadow-2xs"
+          >
+            <span>View All</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {(!data?.recentTransactions || data.recentTransactions.length === 0) ? (
+          <div className="py-8 text-center text-slate-400 text-xs">
+            <p className="font-semibold text-slate-600">No transactions recorded yet</p>
+            <p className="text-[11px] text-slate-400 mt-1">Start tracking your income and expenses to see recent activity here.</p>
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <button
+                onClick={() => onTriggerAddTxn ? onTriggerAddTxn('credit') : setActivePage('transactions')}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition-colors"
+              >
+                + Add Income
+              </button>
+              <button
+                onClick={() => onTriggerAddTxn ? onTriggerAddTxn('debit') : setActivePage('transactions')}
+                className="px-3.5 py-1.5 rounded-xl bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 transition-colors shadow-2xs"
+              >
+                + Add Expense
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {data.recentTransactions.map((tx) => {
+              const isCredit = tx.type === 'credit';
+              return (
+                <div
+                  key={tx._id}
+                  onClick={() => setActivePage('transactions')}
+                  className="py-3 flex items-center justify-between hover:bg-purple-50/40 px-2 rounded-xl cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        isCredit
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                          : 'bg-rose-50 text-rose-600 border border-rose-100'
+                      }`}
+                    >
+                      {isCredit ? (
+                        <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
+                      ) : (
+                        <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">
+                        {tx.reason || tx.category || (isCredit ? 'Income' : 'Expense')}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium flex items-center gap-2 mt-0.5">
+                        <span className="font-semibold text-slate-600">{tx.category}</span>
+                        <span>•</span>
+                        <span>{formatDueDateDisplay(tx.date)}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span
+                      className={`text-sm font-extrabold ${
+                        isCredit ? 'text-emerald-600' : 'text-slate-900'
+                      }`}
+                    >
+                      {isCredit ? '+' : '-'}{formatCurrency(tx.amount)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recurring Payment Details Modal */}

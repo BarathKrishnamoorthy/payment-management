@@ -206,7 +206,16 @@ export const TransactionsPage = ({ initialType = null }) => {
     setIsEditing(true);
     setFormType(txn.type);
     setFormAmount(String(txn.amount));
-    setFormDate(new Date(txn.date).toISOString().split('T')[0]);
+    let formattedDate = new Date().toISOString().split('T')[0];
+    if (txn.date) {
+      try {
+        const d = new Date(txn.date);
+        if (!isNaN(d.getTime())) {
+          formattedDate = d.toISOString().split('T')[0];
+        }
+      } catch (e) {}
+    }
+    setFormDate(formattedDate);
     setFormCategory(txn.category || 'General Expense');
     setFormReason(txn.reason || '');
     setFormRefNumber(txn.referenceNumber || '');
@@ -242,6 +251,11 @@ export const TransactionsPage = ({ initialType = null }) => {
         await api.createTransaction(formData);
       }
 
+      const key = getCustomerKey();
+      try {
+        localStorage.removeItem(`rb_dash_${key}`);
+      } catch (e) {}
+
       setShowAddModal(false);
       resetForm();
       fetchTransactions();
@@ -258,6 +272,10 @@ export const TransactionsPage = ({ initialType = null }) => {
     }
     try {
       await api.deleteTransaction(id);
+      const key = getCustomerKey();
+      try {
+        localStorage.removeItem(`rb_dash_${key}`);
+      } catch (e) {}
       fetchTransactions();
     } catch (err) {
       alert(err.message || 'Failed to delete transaction.');

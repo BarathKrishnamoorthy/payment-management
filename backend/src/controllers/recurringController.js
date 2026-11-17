@@ -251,8 +251,20 @@ const updateRecurringPayment = async (req, res) => {
         if (autoCreateDebit !== undefined) recurring.autoCreateDebit = Boolean(autoCreateDebit);
 
         if (dueDate) {
-          recurring.dueDate = new Date(dueDate);
-          recurring.nextDueDate = new Date(dueDate);
+          let parsedDue;
+          if (typeof dueDate === 'string' && /^\d{2}-\d{2}-\d{4}$/.test(dueDate)) {
+            const [d, m, y] = dueDate.split('-');
+            parsedDue = new Date(Number(y), Number(m) - 1, Number(d));
+          } else if (typeof dueDate === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dueDate)) {
+            const [d, m, y] = dueDate.split('/');
+            parsedDue = new Date(Number(y), Number(m) - 1, Number(d));
+          } else {
+            parsedDue = new Date(dueDate);
+          }
+          if (!isNaN(parsedDue.getTime())) {
+            recurring.dueDate = parsedDue;
+            recurring.nextDueDate = parsedDue;
+          }
         }
 
         await recurring.save();
