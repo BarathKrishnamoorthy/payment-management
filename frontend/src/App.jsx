@@ -17,6 +17,14 @@ import { FamilyPage } from './pages/FamilyPage';
 import { PlanningPage } from './pages/PlanningPage';
 import { LoansPage } from './pages/LoansPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { AdminProtectedRoute } from './components/admin/AdminProtectedRoute';
+import { AdminLoginPage } from './pages/admin/AdminLoginPage';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { ActiveUsersPage } from './pages/admin/ActiveUsersPage';
+import { UserManagementPage } from './pages/admin/UserManagementPage';
+import { ActivityAnalyticsPage } from './pages/admin/ActivityAnalyticsPage';
+import { PlatformAnalyticsPage } from './pages/admin/PlatformAnalyticsPage';
+import { AdminReportsPage } from './pages/admin/AdminReportsPage';
 import { api } from './services/api';
 
 // Branded loading spinner
@@ -292,7 +300,59 @@ export function App() {
         }
       />
 
-      {/* 5. 404 Catch-All Page */}
+      {/* 5. Centralized Admin Portal Routes */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminProtectedRoute>
+            <AdminDashboardPage />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/active-users"
+        element={
+          <AdminProtectedRoute>
+            <ActiveUsersPage />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <AdminProtectedRoute>
+            <UserManagementPage />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/analytics"
+        element={
+          <AdminProtectedRoute>
+            <ActivityAnalyticsPage />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/platform"
+        element={
+          <AdminProtectedRoute>
+            <PlatformAnalyticsPage />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reports"
+        element={
+          <AdminProtectedRoute>
+            <AdminReportsPage />
+          </AdminProtectedRoute>
+        }
+      />
+
+      {/* 6. 404 Catch-All Page */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

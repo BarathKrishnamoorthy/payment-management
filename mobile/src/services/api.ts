@@ -18,7 +18,7 @@ export const getApiUrl = () => currentApiUrl;
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Bypass-Tunnel-Reminder': 'true',
+    'x-platform': Platform.OS === 'ios' ? 'ios' : 'android',
   };
   if (userToken) {
     headers['Authorization'] = `Bearer ${userToken}`;
@@ -39,7 +39,10 @@ export const MobileAPI = {
   sendOtp: async (phoneNumber: string) => {
     const res = await fetch(`${currentApiUrl}/auth/send-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-platform': Platform.OS === 'ios' ? 'ios' : 'android',
+      },
       body: JSON.stringify({ phoneNumber }),
     });
     return handleRes(res);
@@ -48,7 +51,10 @@ export const MobileAPI = {
   verifyOtp: async (phoneNumber: string, otp: string) => {
     const res = await fetch(`${currentApiUrl}/auth/verify-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-platform': Platform.OS === 'ios' ? 'ios' : 'android',
+      },
       body: JSON.stringify({ phoneNumber, otp }),
     });
     return handleRes(res);

@@ -57,6 +57,43 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    status: {
+      type: String,
+      enum: ['Active', 'Inactive', 'Blocked'],
+      default: 'Active',
+      index: true,
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    blockReason: {
+      type: String,
+      default: '',
+    },
+    lastLoginAt: {
+      type: Date,
+      default: Date.now,
+    },
+    lastActiveAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+    platform: {
+      type: String,
+      enum: ['website', 'android', 'ios'],
+      default: 'website',
+    },
+    appVersion: {
+      type: String,
+      default: '1.0.0',
+    },
+    loginCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

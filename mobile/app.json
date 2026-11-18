@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "RB Payment Management",
-    "slug": "rb-payment-management",
+    "name": "ERM - Every Rupee Matters",
+    "slug": "erm-payment-management",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

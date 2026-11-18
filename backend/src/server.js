@@ -27,6 +27,7 @@ const accountRoutes = require('./routes/accountRoutes');
 const workspaceRoutes = require('./routes/workspaceRoutes');
 const planningRoutes = require('./routes/planningRoutes');
 const loanRoutes = require('./routes/loanRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -100,6 +101,7 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/planning', planningRoutes);
 app.use('/api/loans', loanRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Daily Cron Job for Recurring Payment Due-Date Reminders (Only on persistent server, not serverless)
 if (process.env.VERCEL !== '1') {

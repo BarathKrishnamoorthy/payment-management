@@ -65,6 +65,55 @@ const protect = async (req, res, next) => {
         req.user = fallbackStore.getUserById(rawId);
       }
 
+      if (req.user) {
+        // 1. Account Block Check
+        if (req.user.isBlocked) {
+          return res.status(403).json({
+            success: false,
+            message: req.user.blockReason
+              ? `Your account has been suspended: ${req.user.blockReason}`
+              : 'Your account has been suspended or blocked by an administrator. Please contact support.',
+          });
+        }
+
+        // 2. Track platform & real-time activity
+        const platformHeader = (req.headers['x-platform'] || '').toLowerCase();
+        const platform = ['android', 'ios', 'website'].includes(platformHeader)
+          ? platformHeader
+          : /mobile|android|iphone|ipad/i.test(req.headers['user-agent'] || '')
+          ? 'android'
+          : 'website';
+
+        const now = new Date();
+        req.user.lastActiveAt = now;
+        req.user.platform = platform;
+
+        // Async non-blocking save of lastActiveAt & platform
+        try {
+          if (req.user.save) {
+            req.user.save().catch(() => {});
+          } else {
+            fallbackStore.updateUser(req.user._id || req.user.id, {
+              lastActiveAt: now.toISOString(),
+              platform,
+            });
+          }
+
+          // Log user activity in fallbackStore / DB
+          fallbackStore.logUserActivity({
+            userId: req.user._id || req.user.id,
+            phoneNumber: req.user.phoneNumber,
+            userName: req.user.name,
+            platform,
+            action: `${req.method} ${req.baseUrl || req.path}`,
+            ipAddress: req.ip || req.headers['x-forwarded-for'] || '',
+            userAgent: req.headers['user-agent'] || '',
+          });
+        } catch (e) {
+          // ignore tracking error
+        }
+      }
+
       return next();
     } catch (err) {
       console.error('[AuthMiddleware] Unexpected token verification error:', err.message);

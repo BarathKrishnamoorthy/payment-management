@@ -13,6 +13,17 @@ let memoryWorkspaces = [];
 let memoryBudgets = [];
 let memorySavingsGoals = [];
 let memoryLoans = [];
+let memoryAdminUsers = [
+  {
+    _id: 'admin-super-01',
+    name: 'ERM Super Admin',
+    email: 'admin@erm.com',
+    password: '$2b$10$sX/9vh6.BnRBvy1sRwola.2l8rhjDsoTHfqOoosCFvcziZmcC2ImK', // Admin@123456
+    role: 'superadmin',
+    createdAt: new Date().toISOString(),
+  },
+];
+let memoryUserActivities = [];
 
 // Persistence file path
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, '../../data');
@@ -33,6 +44,8 @@ const saveToDisk = () => {
       budgets: memoryBudgets,
       savingsGoals: memorySavingsGoals,
       loans: memoryLoans,
+      adminUsers: memoryAdminUsers,
+      userActivities: memoryUserActivities,
     };
     fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf8');
   } catch (e) {
@@ -71,6 +84,12 @@ const loadFromDisk = () => {
       }
       if (parsed.loans && Array.isArray(parsed.loans)) {
         memoryLoans = parsed.loans;
+      }
+      if (parsed.adminUsers && Array.isArray(parsed.adminUsers) && parsed.adminUsers.length > 0) {
+        memoryAdminUsers = parsed.adminUsers;
+      }
+      if (parsed.userActivities && Array.isArray(parsed.userActivities)) {
+        memoryUserActivities = parsed.userActivities;
       }
     }
   } catch (e) {
@@ -158,8 +177,16 @@ module.exports = {
         accountNumber: '',
         monthlySalary: 0,
         salaryDate: 1,
-        isOnboarded: false,
+        isOnboarded: true,
         tutorialStatus: { dashboard: false, transactions: false, recurring: false, reports: false },
+        status: 'Active',
+        isBlocked: false,
+        blockReason: '',
+        lastLoginAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+        platform: 'website',
+        appVersion: '1.0.0',
+        loginCount: 1,
         createdAt: new Date().toISOString(),
       };
       memoryUsers.set(cleanPhone, newUser);
@@ -1178,5 +1205,538 @@ module.exports = {
     const deleted = memoryLoans.length < initial;
     if (deleted) saveToDisk();
     return deleted;
+  },
+
+  // ================= ADMIN & USER ACTIVITY MODULE =================
+  getAdminByEmail: (email) => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    return memoryAdminUsers.find((a) => (a.email || '').toLowerCase() === cleanEmail) || null;
+  },
+
+  getAdminById: (id) => {
+    return memoryAdminUsers.find((a) => String(a._id) === String(id)) || null;
+  },
+
+  createAdmin: (data) => {
+    const newAdmin = {
+      _id: 'admin-' + Date.now(),
+      name: data.name || 'Admin',
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      role: data.role || 'admin',
+      createdAt: new Date().toISOString(),
+    };
+    memoryAdminUsers.push(newAdmin);
+    saveToDisk();
+    return newAdmin;
+  },
+
+  logUserActivity: (data) => {
+    const act = {
+      _id: 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      user: data.userId || null,
+      phoneNumber: data.phoneNumber || '',
+      userName: data.userName || '',
+      platform: data.platform || 'website',
+      action: data.action || 'activity',
+      ipAddress: data.ipAddress || '',
+      userAgent: data.userAgent || '',
+      timestamp: new Date().toISOString(),
+    };
+    memoryUserActivities.unshift(act);
+    if (memoryUserActivities.length > 25000) {
+      memoryUserActivities.length = 25000;
+    }
+    if (data.userId) {
+      const u = memoryUsers.get(String(data.userId));
+      if (u) {
+        u.lastActiveAt = act.timestamp;
+        if (data.platform) u.platform = data.platform;
+      }
+    }
+    saveToDisk();
+    return act;
+  },
+
+  getAdminStats: () => {
+    const allUsers = Array.from(new Set(Array.from(memoryUsers.values()).map(u => u._id)))
+      .map(id => memoryUsers.get(id))
+      .filter(Boolean);
+
+    const now = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayTime = todayStart.getTime();
+
+    const weekStart = now - (7 * 24 * 60 * 60 * 1000);
+    const monthStart = now - (30 * 24 * 60 * 60 * 1000);
+    const realTime30Min = now - (30 * 60 * 1000);
+
+    const activeUserIdsToday = new Set();
+    const activeUserIdsWeek = new Set();
+    const activeUserIdsMonth = new Set();
+    const webActiveUserIds = new Set();
+    const mobileActiveUserIds = new Set();
+    const realTimeActiveUserIds = new Set();
+
+    allUsers.forEach((u) => {
+      const lastActive = u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0;
+      const isMob = u.platform === 'android' || u.platform === 'ios';
+
+      if (lastActive >= todayTime) activeUserIdsToday.add(u._id);
+      if (lastActive >= weekStart) activeUserIdsWeek.add(u._id);
+      if (lastActive >= monthStart) {
+        activeUserIdsMonth.add(u._id);
+        if (isMob) mobileActiveUserIds.add(u._id);
+        else webActiveUserIds.add(u._id);
+      }
+      if (lastActive >= realTime30Min) realTimeActiveUserIds.add(u._id);
+    });
+
+    memoryUserActivities.forEach((a) => {
+      const t = new Date(a.timestamp).getTime();
+      const uId = a.user ? String(a.user) : null;
+      if (!uId) return;
+
+      if (t >= todayTime) activeUserIdsToday.add(uId);
+      if (t >= weekStart) activeUserIdsWeek.add(uId);
+      if (t >= monthStart) {
+        activeUserIdsMonth.add(uId);
+        if (a.platform === 'android' || a.platform === 'ios') mobileActiveUserIds.add(uId);
+        else webActiveUserIds.add(uId);
+      }
+      if (t >= realTime30Min) realTimeActiveUserIds.add(uId);
+    });
+
+    const newRegistrationsToday = allUsers.filter((u) => {
+      const created = u.createdAt ? new Date(u.createdAt).getTime() : 0;
+      return created >= todayTime;
+    }).length;
+
+    const blockedUsersCount = allUsers.filter((u) => u.isBlocked === true).length;
+    const inactiveUsersCount = allUsers.filter((u) => !activeUserIdsMonth.has(u._id)).length;
+
+    return {
+      totalRegisteredUsers: allUsers.length,
+      totalActiveUsers: activeUserIdsMonth.size,
+      dau: activeUserIdsToday.size,
+      wau: activeUserIdsWeek.size,
+      mau: activeUserIdsMonth.size,
+      websiteActiveUsers: webActiveUserIds.size,
+      mobileActiveUsers: mobileActiveUserIds.size,
+      newRegistrations: newRegistrationsToday,
+      inactiveUsers: inactiveUsersCount,
+      blockedUsers: blockedUsersCount,
+      realTimeActiveUsers: realTimeActiveUserIds.size,
+    };
+  },
+
+  getActivityTrends: (timeframe = 'last_30_days', customStart = null, customEnd = null) => {
+    const allUsers = Array.from(new Set(Array.from(memoryUsers.values()).map(u => u._id)))
+      .map(id => memoryUsers.get(id))
+      .filter(Boolean);
+
+    let days = 30;
+    if (timeframe === 'today' || timeframe === 'yesterday') days = 1;
+    else if (timeframe === 'last_7_days') days = 7;
+    else if (timeframe === 'this_month') days = 30;
+
+    const points = [];
+    const now = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0).getTime();
+      const dEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).getTime();
+      const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+      const dayActiveUsers = new Set();
+      let webCount = 0;
+      let mobCount = 0;
+      let newReg = 0;
+
+      allUsers.forEach((u) => {
+        const uActive = u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0;
+        const uCreated = u.createdAt ? new Date(u.createdAt).getTime() : 0;
+
+        if (uActive >= dStart && uActive <= dEnd) {
+          dayActiveUsers.add(u._id);
+          if (u.platform === 'android' || u.platform === 'ios') mobCount++;
+          else webCount++;
+        }
+        if (uCreated >= dStart && uCreated <= dEnd) {
+          newReg++;
+        }
+      });
+
+      const dayActivities = memoryUserActivities.filter((a) => {
+        const t = new Date(a.timestamp).getTime();
+        return t >= dStart && t <= dEnd;
+      });
+
+      dayActivities.forEach((a) => {
+        if (a.user) dayActiveUsers.add(String(a.user));
+        if (a.platform === 'android' || a.platform === 'ios') mobCount++;
+        else webCount++;
+      });
+
+      points.push({
+        date: d.toISOString().split('T')[0],
+        label,
+        dau: dayActiveUsers.size,
+        websiteUsers: webCount,
+        mobileUsers: mobCount,
+        newRegistrations: newReg,
+        activityCount: dayActivities.length,
+      });
+    }
+
+    return points;
+  },
+
+  getActiveUsersList: (params = {}) => {
+    const allUsers = Array.from(new Set(Array.from(memoryUsers.values()).map(u => u._id)))
+      .map(id => memoryUsers.get(id))
+      .filter(Boolean);
+
+    const now = Date.now();
+    const monthStart = now - (30 * 24 * 60 * 60 * 1000);
+    const realTime30Min = now - (30 * 60 * 1000);
+
+    let list = allUsers.filter((u) => {
+      const lastActive = u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0;
+      return lastActive >= monthStart && !u.isBlocked;
+    });
+
+    if (params.search) {
+      const q = params.search.trim().toLowerCase();
+      list = list.filter(
+        (u) =>
+          (u.name && u.name.toLowerCase().includes(q)) ||
+          (u.phoneNumber && u.phoneNumber.includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u._id && u._id.toLowerCase().includes(q))
+      );
+    }
+
+    if (params.platform && params.platform !== 'All') {
+      const plat = params.platform.toLowerCase();
+      list = list.filter((u) => (u.platform || 'website').toLowerCase() === plat);
+    }
+
+    // Sort by last active descending
+    list.sort((a, b) => new Date(b.lastActiveAt || b.createdAt || 0) - new Date(a.lastActiveAt || a.createdAt || 0));
+
+    const total = list.length;
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 20;
+    const paged = list.slice((page - 1) * limit, page * limit).map((u) => {
+      const lastActiveTime = u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0;
+      return {
+        ...u,
+        isRealTimeActive: lastActiveTime >= realTime30Min,
+      };
+    });
+
+    return {
+      users: paged,
+      total,
+      page,
+      pages: Math.ceil(total / limit) || 1,
+    };
+  },
+
+  getAllUsersList: (params = {}) => {
+    let list = Array.from(new Set(Array.from(memoryUsers.values()).map(u => u._id)))
+      .map(id => memoryUsers.get(id))
+      .filter(Boolean);
+
+    if (params.search) {
+      const q = params.search.trim().toLowerCase();
+      list = list.filter(
+        (u) =>
+          (u.name && u.name.toLowerCase().includes(q)) ||
+          (u.phoneNumber && u.phoneNumber.includes(q)) ||
+          (u.email && u.email.toLowerCase().includes(q)) ||
+          (u._id && u._id.toLowerCase().includes(q))
+      );
+    }
+
+    if (params.status && params.status !== 'All') {
+      list = list.filter((u) => (u.status || 'Active').toLowerCase() === params.status.toLowerCase());
+    }
+
+    if (params.platform && params.platform !== 'All') {
+      list = list.filter((u) => (u.platform || 'website').toLowerCase() === params.platform.toLowerCase());
+    }
+
+    list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    const total = list.length;
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 20;
+    const paged = list.slice((page - 1) * limit, page * limit);
+
+    return {
+      users: paged,
+      total,
+      page,
+      pages: Math.ceil(total / limit) || 1,
+    };
+  },
+
+  getUserDetails: (id) => {
+    const stringId = String(id);
+    let user = null;
+    for (const u of memoryUsers.values()) {
+      if (String(u._id) === stringId || String(u.phoneNumber) === stringId) {
+        user = u;
+        break;
+      }
+    }
+    if (!user) return null;
+
+    const userTx = memoryTransactions.filter((t) => String(t.user) === String(user._id));
+    const userRec = memoryRecurring.filter((r) => String(r.user) === String(user._id));
+    const userLoans = memoryLoans.filter((l) => String(l.user) === String(user._id));
+    const userAccs = memoryAccounts.filter((a) => String(a.user) === String(user._id));
+    const activities = memoryUserActivities
+      .filter((a) => String(a.user) === String(user._id))
+      .slice(0, 30);
+
+    return {
+      user,
+      stats: {
+        totalTransactions: userTx.length,
+        totalIncome: userTx.filter((t) => t.type === 'credit').reduce((s, t) => s + (Number(t.amount) || 0), 0),
+        totalExpenses: userTx.filter((t) => t.type === 'debit').reduce((s, t) => s + (Number(t.amount) || 0), 0),
+        recurringSchedules: userRec.length,
+        loansCount: userLoans.length,
+        accountsCount: userAccs.length,
+      },
+      recentActivity: activities,
+    };
+  },
+
+  setUserStatus: (id, status) => {
+    const stringId = String(id);
+    for (const u of memoryUsers.values()) {
+      if (String(u._id) === stringId || String(u.phoneNumber) === stringId) {
+        u.status = status;
+        if (status === 'Blocked') u.isBlocked = true;
+        if (status === 'Active') u.isBlocked = false;
+        saveToDisk();
+        return u;
+      }
+    }
+    return null;
+  },
+
+  setUserBlockStatus: (id, isBlocked, reason = '') => {
+    const stringId = String(id);
+    for (const u of memoryUsers.values()) {
+      if (String(u._id) === stringId || String(u.phoneNumber) === stringId) {
+        u.isBlocked = Boolean(isBlocked);
+        u.blockReason = reason || '';
+        u.status = isBlocked ? 'Blocked' : 'Active';
+        saveToDisk();
+        return u;
+      }
+    }
+    return null;
+  },
+
+  getPlatformAnalytics: () => {
+    const allUsers = Array.from(new Set(Array.from(memoryUsers.values()).map(u => u._id)))
+      .map(id => memoryUsers.get(id))
+      .filter(Boolean);
+
+    const now = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayTime = todayStart.getTime();
+    const monthStart = now - (30 * 24 * 60 * 60 * 1000);
+
+    const webUsers = allUsers.filter((u) => (u.platform || 'website') === 'website');
+    const androidUsers = allUsers.filter((u) => u.platform === 'android');
+    const iosUsers = allUsers.filter((u) => u.platform === 'ios');
+    const mobileUsers = allUsers.filter((u) => u.platform === 'android' || u.platform === 'ios');
+
+    const webDau = webUsers.filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) >= todayTime).length;
+    const webMau = webUsers.filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) >= monthStart).length;
+    const webNew = webUsers.filter((u) => (u.createdAt ? new Date(u.createdAt).getTime() : 0) >= todayTime).length;
+
+    const mobDau = mobileUsers.filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) >= todayTime).length;
+    const mobMau = mobileUsers.filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) >= monthStart).length;
+
+    const versionMap = {};
+    mobileUsers.forEach((u) => {
+      const v = u.appVersion || '1.0.0';
+      versionMap[v] = (versionMap[v] || 0) + 1;
+    });
+
+    const versionDistribution = Object.keys(versionMap).map((k) => ({
+      version: k,
+      count: versionMap[k],
+      percentage: mobileUsers.length > 0 ? Math.round((versionMap[k] / mobileUsers.length) * 100) : 0,
+    }));
+
+    return {
+      website: {
+        totalUsers: webUsers.length,
+        dau: webDau,
+        mau: webMau,
+        loginActivity: memoryUserActivities.filter((a) => a.platform === 'website').length,
+        newRegistrations: webNew,
+      },
+      mobile: {
+        totalUsers: mobileUsers.length,
+        dau: mobDau,
+        mau: mobMau,
+        androidUsers: androidUsers.length,
+        iosUsers: iosUsers.length,
+        loginActivity: memoryUserActivities.filter((a) => a.platform === 'android' || a.platform === 'ios').length,
+        versionDistribution: versionDistribution.length > 0 ? versionDistribution : [{ version: '1.0.0', count: mobileUsers.length, percentage: 100 }],
+      },
+    };
+  },
+
+  getReports: (reportType = 'total_registered', params = {}) => {
+    const allUsers = Array.from(new Set(Array.from(memoryUsers.values()).map(u => u._id)))
+      .map(id => memoryUsers.get(id))
+      .filter(Boolean);
+
+    const now = Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayTime = todayStart.getTime();
+    const weekStart = now - (7 * 24 * 60 * 60 * 1000);
+    const monthStart = now - (30 * 24 * 60 * 60 * 1000);
+
+    let rows = [];
+
+    switch (reportType) {
+      case 'total_registered':
+        rows = allUsers.map((u) => ({
+          'User ID': u._id,
+          'Name': u.name || 'N/A',
+          'Phone': u.phoneNumber,
+          'Email': u.email || 'N/A',
+          'Platform': u.platform || 'website',
+          'Status': u.status || 'Active',
+          'Registration Date': u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
+          'Last Login': u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'N/A',
+        }));
+        break;
+
+      case 'daily_active':
+        rows = allUsers
+          .filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) >= todayTime)
+          .map((u) => ({
+            'User ID': u._id,
+            'Name': u.name || 'N/A',
+            'Phone': u.phoneNumber,
+            'Platform': u.platform || 'website',
+            'Last Active Time': u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : 'N/A',
+            'Status': u.status || 'Active',
+          }));
+        break;
+
+      case 'weekly_monthly_active':
+        rows = allUsers
+          .filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) >= monthStart)
+          .map((u) => {
+            const act = u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0;
+            return {
+              'User ID': u._id,
+              'Name': u.name || 'N/A',
+              'Phone': u.phoneNumber,
+              'Platform': u.platform || 'website',
+              'Active Category': act >= weekStart ? 'Weekly Active (WAU)' : 'Monthly Active (MAU)',
+              'Last Active': u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : 'N/A',
+              'Status': u.status || 'Active',
+            };
+          });
+        break;
+
+      case 'inactive_users':
+        rows = allUsers
+          .filter((u) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0) < monthStart)
+          .map((u) => ({
+            'User ID': u._id,
+            'Name': u.name || 'N/A',
+            'Phone': u.phoneNumber,
+            'Days Inactive': Math.floor((now - (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0)) / (1000 * 60 * 60 * 24)),
+            'Last Seen': u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleDateString() : 'Never',
+            'Status': u.status || 'Inactive',
+          }));
+        break;
+
+      case 'website_usage':
+        rows = allUsers
+          .filter((u) => (u.platform || 'website') === 'website')
+          .map((u) => ({
+            'User ID': u._id,
+            'Name': u.name || 'N/A',
+            'Phone': u.phoneNumber,
+            'Platform': 'Website',
+            'Last Login': u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'N/A',
+            'Last Active': u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : 'N/A',
+            'Login Count': u.loginCount || 1,
+          }));
+        break;
+
+      case 'mobile_usage':
+        rows = allUsers
+          .filter((u) => u.platform === 'android' || u.platform === 'ios')
+          .map((u) => ({
+            'User ID': u._id,
+            'Name': u.name || 'N/A',
+            'Phone': u.phoneNumber,
+            'OS': u.platform.toUpperCase(),
+            'App Version': u.appVersion || '1.0.0',
+            'Last Active': u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : 'N/A',
+            'Login Count': u.loginCount || 1,
+          }));
+        break;
+
+      case 'new_registrations':
+        rows = allUsers
+          .filter((u) => (u.createdAt ? new Date(u.createdAt).getTime() : 0) >= todayTime)
+          .map((u) => ({
+            'User ID': u._id,
+            'Name': u.name || 'N/A',
+            'Phone': u.phoneNumber,
+            'Platform': u.platform || 'website',
+            'Registered At': u.createdAt ? new Date(u.createdAt).toLocaleString() : 'N/A',
+            'Status': u.status || 'Active',
+          }));
+        break;
+
+      case 'login_activity':
+        rows = memoryUserActivities
+          .filter((a) => a.action && a.action.toLowerCase().includes('login'))
+          .slice(0, 1000)
+          .map((a) => ({
+            'Activity ID': a._id,
+            'User ID': a.user || 'Guest',
+            'Name': a.userName || 'N/A',
+            'Phone': a.phoneNumber || 'N/A',
+            'Platform': a.platform,
+            'IP Address': a.ipAddress || '127.0.0.1',
+            'Timestamp': new Date(a.timestamp).toLocaleString(),
+          }));
+        break;
+
+      default:
+        rows = [];
+    }
+
+    return {
+      reportType,
+      generatedAt: new Date().toISOString(),
+      rowCount: rows.length,
+      data: rows,
+    };
   },
 };

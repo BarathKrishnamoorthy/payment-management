@@ -13,6 +13,7 @@ import {
   FlatList,
   Modal,
   Platform,
+  Image,
 } from 'react-native';
 import { Colors } from './src/theme/colors';
 import { MobileAPI, setAuthToken, setApiUrl, getApiUrl } from './src/services/api';
@@ -398,9 +399,13 @@ export default function App() {
         <ScrollView contentContainerStyle={styles.authScroll}>
           {/* Logo Badge */}
           <View style={styles.authLogoBox}>
-            <Text style={styles.authLogoIcon}>💳</Text>
+            <Image
+              source={require('./assets/logo.png')}
+              style={{ width: 62, height: 62, borderRadius: 18 }}
+              resizeMode="contain"
+            />
           </View>
-          <Text style={styles.authTitle}>RB Payment Management</Text>
+          <Text style={styles.authTitle}>ERM - Every Rupee Matters</Text>
           <Text style={styles.authSubtitle}>Secure Finance, Loans & Recurring Ledger</Text>
 
           {/* Server URL Badge / Switcher */}
@@ -590,11 +595,18 @@ export default function App() {
 
       {/* Top Header Bar */}
       <View style={styles.appHeader}>
-        <View>
-          <Text style={styles.headerAppTitle}>RB Payment</Text>
-          <Text style={styles.headerUserGreeting}>
-            Hi, {user.name ? user.name.split(' ')[0] : 'Customer'} 👋
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Image
+            source={require('./assets/logo.png')}
+            style={{ width: 34, height: 34, borderRadius: 10 }}
+            resizeMode="contain"
+          />
+          <View>
+            <Text style={styles.headerAppTitle}>ERM</Text>
+            <Text style={styles.headerUserGreeting}>
+              Hi, {user.name ? user.name.split(' ')[0] : 'Customer'} 👋
+            </Text>
+          </View>
         </View>
 
         <View style={styles.headerRightActions}>
